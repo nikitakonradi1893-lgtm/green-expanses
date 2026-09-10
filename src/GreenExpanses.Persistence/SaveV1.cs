@@ -158,6 +158,7 @@ public static class SaveV1Serializer
         public DateTime CurrentDateTime { get; init; }
         public long CompletedDays { get; init; }
         public required List<Guid> FieldIds { get; init; }
+        public required List<FieldDto> Fields { get; init; }
         public required List<Guid> OwnedFieldIds { get; init; }
         public decimal OpeningCash { get; init; }
         public decimal Debt { get; init; }
@@ -176,6 +177,10 @@ public static class SaveV1Serializer
                 CurrentDateTime = state.CurrentDateTime.Value,
                 CompletedDays = state.Simulation.CompletedDays,
                 FieldIds = state.World.FieldIds.Select(id => id.Value).OrderBy(id => id).ToList(),
+                Fields = state.World.Fields
+                    .OrderBy(static field => field.Id.Value)
+                    .Select(FieldDto.FromDomain)
+                    .ToList(),
                 OwnedFieldIds = state.Farm.OwnedFieldIds.Select(id => id.Value).ToList(),
                 OpeningCash = state.Economy.OpeningCash.Value,
                 Debt = state.Economy.Debt.Value,
@@ -188,9 +193,18 @@ public static class SaveV1Serializer
         public GameState ToDomain()
         {
             var world = new WorldState();
+            foreach (var field in Fields)
+            {
+                world.AddField(field.ToDomain());
+            }
+
             foreach (var fieldId in FieldIds)
             {
-                world.FieldRegistry.Add(new EntityId(fieldId));
+                var id = new EntityId(fieldId);
+                if (!world.FieldRegistry.Contains(id))
+                {
+                    world.FieldRegistry.Add(id);
+                }
             }
 
             var economy = new EconomyState(new Money(OpeningCash))
@@ -235,6 +249,30 @@ public static class SaveV1Serializer
                 EventLog = eventLog
             };
         }
+    }
+
+    private sealed class FieldDto
+    {
+        public Guid Id { get; init; }
+        public decimal AreaHa { get; init; }
+        public decimal DistanceKm { get; init; }
+        public decimal FieldQualityBase { get; init; }
+
+        public static FieldDto FromDomain(Field field) => new()
+        {
+            Id = field.Id.Value,
+            AreaHa = field.Area.Value,
+            DistanceKm = field.DistanceKm,
+            FieldQualityBase = field.FieldQualityBase
+        };
+
+        public Field ToDomain() => new()
+        {
+            Id = new EntityId(Id),
+            Area = new AreaHa(AreaHa),
+            DistanceKm = DistanceKm,
+            FieldQualityBase = FieldQualityBase
+        };
     }
 
     private sealed class TransactionDto
