@@ -14,7 +14,7 @@ public sealed class FirstPlayableScenarioTests
         var state = InheritanceScenarioFactory.Create(20260910UL, new Money(1_000_000m));
 
         Assert.Single(state.Farm.OwnedFieldIds);
-        var field = Assert.Single(state.World.Fields.Where(field => state.Farm.OwnedFieldIds.Contains(field.Id)));
+        var field = Assert.Single(state.World.Fields, field => state.Farm.OwnedFieldIds.Contains(field.Id));
         Assert.True(field.DistanceKm <= 10m);
         Assert.InRange(field.Area.Value, 20m, 40m);
         Assert.Equal(1_000_000m, state.Economy.Cash.Value);
