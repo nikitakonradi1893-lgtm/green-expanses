@@ -1,4 +1,5 @@
 using GreenExpanses.Domain;
+using GreenExpanses.Simulation;
 using Xunit;
 
 namespace GreenExpanses.Tests;
