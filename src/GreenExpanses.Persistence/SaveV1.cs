@@ -78,10 +78,13 @@ public static class SaveV1Serializer
             throw new InvalidDataException($"Unsupported save schema version '{envelope.Header.SaveSchemaVersion}'.");
         }
 
+        var storedChecksum = string.IsNullOrWhiteSpace(envelope.Header.Checksum)
+            ? throw new InvalidDataException("Save checksum is missing.")
+            : envelope.Header.Checksum;
         var actualChecksum = ComputeChecksum(envelope.State);
         if (!CryptographicOperations.FixedTimeEquals(
                 Encoding.ASCII.GetBytes(actualChecksum),
-                Encoding.ASCII.GetBytes(envelope.Header.Checksum ?? string.Empty)))
+                Encoding.ASCII.GetBytes(storedChecksum)))
         {
             throw new InvalidDataException("Save checksum mismatch.");
         }
@@ -108,7 +111,7 @@ public static class SaveV1Serializer
             new GameDateTime(envelope.Header.CurrentDateTime),
             envelope.Header.CreatedAtRealTime,
             envelope.Header.LastSavedAtRealTime,
-            envelope.Header.Checksum);
+            storedChecksum);
 
         if (header.CampaignId != state.CampaignId ||
             header.WorldSeed != state.WorldSeed ||
@@ -283,10 +286,21 @@ public static class SaveV1Serializer
             GameDateTime = domainEvent.GameDateTime.Value,
             EventType = domainEvent.EventType.Value,
             EntityIds = domainEvent.EntityIds.Select(id => id.Value).ToList(),
-            Payload = new SortedDictionary<string, string>(domainEvent.Payload.Values, StringComparer.Ordinal),
+            Payload = CreateSortedPayload(domainEvent.Payload.Values),
             CausationCommandId = domainEvent.CausationCommandId.Value,
             CorrelationId = domainEvent.CorrelationId.Value
         };
+
+        private static SortedDictionary<string, string> CreateSortedPayload(IReadOnlyDictionary<string, string> values)
+        {
+            var result = new SortedDictionary<string, string>(StringComparer.Ordinal);
+            foreach (var pair in values)
+            {
+                result.Add(pair.Key, pair.Value);
+            }
+
+            return result;
+        }
 
         public DomainEvent ToDomain()
         {
@@ -351,9 +365,11 @@ public sealed class AutosaveStore
         var tempPath = SlotPath + ".tmp";
         try
         {
-            File.WriteAllText(tempPath, json, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-            using (var stream = new FileStream(tempPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (var stream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
+            using (var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), leaveOpen: true))
             {
+                writer.Write(json);
+                writer.Flush();
                 stream.Flush(flushToDisk: true);
             }
 
