@@ -1,6 +1,7 @@
 using System.Globalization;
 using Godot;
 using GreenExpanses.Application;
+using GreenExpanses.Application.Commands;
 using GreenExpanses.Domain;
 using GreenExpanses.Persistence;
 using GreenExpanses.Simulation;
@@ -10,6 +11,7 @@ namespace GreenExpanses.GodotClient;
 public partial class Main : Control
 {
     private readonly ConfigVersion _configVersion = new("1.0.0-dev");
+    private readonly CommandBus _commandBus = FirstPlayableCommandBusFactory.Create();
     private FirstPlayableProfile _profile = FirstPlayableProfile.Default;
     private GameState? _state;
     private AutosaveStore? _autosave;
@@ -24,6 +26,8 @@ public partial class Main : Control
     private Label _attentionLabel = null!;
     private Label _fieldDetail = null!;
     private VBoxContainer _fieldRows = null!;
+    private OptionButton _cropChoice = null!;
+    private Button _planCropButton = null!;
 
     public override void _Ready()
     {
@@ -144,7 +148,7 @@ public partial class Main : Control
         _todayLabel = new Label
         {
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            Text = "Активных полевых работ пока нет. Первый производственный цикл будет добавлен следующим этапом."
+            Text = "Выберите собственное поле и назначьте культуру сезона."
         };
         center.AddChild(_todayLabel);
 
@@ -175,7 +179,7 @@ public partial class Main : Control
 
     private void BuildRightColumn(HBoxContainer body)
     {
-        var right = new VBoxContainer { CustomMinimumSize = new Vector2(330, 0) };
+        var right = new VBoxContainer { CustomMinimumSize = new Vector2(350, 0) };
         right.AddThemeConstantOverride("separation", 10);
         body.AddChild(right);
 
@@ -186,7 +190,7 @@ public partial class Main : Control
         _attentionLabel = new Label
         {
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            Text = "Внимание — производственный план ещё не сформирован.\nПричина: операции и техника пока не подключены к playable-срезу."
+            Text = "ПЛАН — для собственного поля ещё не выбрана культура сезона."
         };
         right.AddChild(_attentionLabel);
 
@@ -202,6 +206,35 @@ public partial class Main : Control
             Text = "Выберите поле из списка."
         };
         right.AddChild(_fieldDetail);
+
+        right.AddChild(new HSeparator());
+
+        var planTitle = new Label { Text = "ПЛАН СЕЗОНА" };
+        planTitle.AddThemeFontSizeOverride("font_size", 18);
+        right.AddChild(planTitle);
+
+        _cropChoice = new OptionButton();
+        _cropChoice.AddItem("Озимая пшеница");
+        _cropChoice.AddItem("Кукуруза");
+        _cropChoice.AddItem("Подсолнечник");
+        _cropChoice.AddItem("Соя");
+        right.AddChild(_cropChoice);
+
+        _planCropButton = new Button
+        {
+            Text = "Назначить культуру",
+            Disabled = true,
+            CustomMinimumSize = new Vector2(0, 40)
+        };
+        _planCropButton.Pressed += PlanSelectedCrop;
+        right.AddChild(_planCropButton);
+
+        var planHint = new Label
+        {
+            Text = "Это уже игровое решение: выбор записывается в GameState и EventLog и сохраняется вместе с кампанией.",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart
+        };
+        right.AddChild(planHint);
     }
 
     private void AddNavButton(Container parent, string text, bool active = false)
@@ -268,7 +301,7 @@ public partial class Main : Control
             return;
         }
 
-        _autosave.Save(_state, _configVersion, "internal-first-playable-v1");
+        _autosave.Save(_state, _configVersion, "internal-first-playable-v2");
         SetStatus("Игра сохранена.");
     }
 
@@ -307,8 +340,14 @@ public partial class Main : Control
         _dateLabel.Text = $"Дата: {view.CurrentDateTime.Value:dd.MM.yyyy}";
         _cashLabel.Text = $"Деньги: {view.CashRub:N0} ₽";
         _capacityLabel.Text = "Capacity Forecast: не рассчитан";
-        _todayLabel.Text = $"Хозяйство «Наследство»: {view.OwnedAreaHa:N1} га в собственности. " +
-                           "Активных операций пока нет — этот экран уже готов принимать реальные задачи из планировщика.";
+
+        var ownedPlan = _state.Farm.CropPlans.FirstOrDefault(plan => _state.Farm.OwnedFieldIds.Contains(plan.FieldId));
+        _todayLabel.Text = ownedPlan is null
+            ? $"Хозяйство «Наследство»: {view.OwnedAreaHa:N1} га. Первое решение сезона — выбрать культуру для собственного поля."
+            : $"Хозяйство «Наследство»: {view.OwnedAreaHa:N1} га. План сезона: {CropName(ownedPlan.CropId)}. Следующий шаг — сформировать первую полевую операцию.";
+        _attentionLabel.Text = ownedPlan is null
+            ? "ПЛАН — для собственного поля ещё не выбрана культура сезона."
+            : $"План культуры принят: {CropName(ownedPlan.CropId)}. Операции и техника будут подключены следующим срезом.";
 
         foreach (var child in _fieldRows.GetChildren())
         {
@@ -318,10 +357,12 @@ public partial class Main : Control
         foreach (var field in view.Fields)
         {
             var owned = field.IsOwned ? "СВОЁ" : "РАЙОН";
+            var plan = _state.Farm.CropPlans.FirstOrDefault(item => item.FieldId == field.FieldId);
+            var planText = plan is null ? string.Empty : $"  •  план: {CropName(plan.CropId)}";
             var button = new Button
             {
                 Text = field.IsOwned
-                    ? $"[{owned}] {field.AreaHa:N1} га  •  {field.DistanceKm:N1} км  •  плодородие {field.Fertility:N0}  •  дренаж: {TranslateDrainage(field.Drainage)}"
+                    ? $"[{owned}] {field.AreaHa:N1} га  •  {field.DistanceKm:N1} км  •  плодородие {field.Fertility:N0}  •  дренаж: {TranslateDrainage(field.Drainage)}{planText}"
                     : $"[{owned}] {field.AreaHa:N1} га  •  {field.DistanceKm:N1} км  •  качество {field.Fertility:N0}  •  дренаж: {TranslateDrainage(field.Drainage)}",
                 Alignment = HorizontalAlignment.Left,
                 CustomMinimumSize = new Vector2(0, 38)
@@ -339,6 +380,10 @@ public partial class Main : Control
                 SelectField(match);
             }
         }
+        else
+        {
+            _planCropButton.Disabled = true;
+        }
     }
 
     private void SelectField(FirstPlayableFieldView field)
@@ -348,15 +393,57 @@ public partial class Main : Control
         var chemistry = field.IsOwned
             ? $"Стартовое обследование\npH: {field.Ph:N2}\nN / P / K: {field.SoilN:N1} / {field.SoilP:N1} / {field.SoilK:N1}\nОрганическое вещество: {field.OrganicMatter:N1}"
             : "Агрохимия: точные N/P/K и pH должны раскрываться после анализа почвы. Механика анализа пока не подключена.";
+        var plan = _state?.Farm.CropPlans.FirstOrDefault(item => item.FieldId == field.FieldId);
+        var planText = plan is null ? "не назначена" : CropName(plan.CropId);
 
         _fieldDetail.Text =
             $"{ownership}\n\n" +
             $"Площадь: {field.AreaHa:N1} га\n" +
             $"Расстояние от базы: {field.DistanceKm:N1} км\n" +
             $"Плодородие: {field.Fertility:N1}/100\n" +
-            $"Дренаж: {TranslateDrainage(field.Drainage)}\n\n" +
+            $"Дренаж: {TranslateDrainage(field.Drainage)}\n" +
+            $"Культура сезона: {planText}\n\n" +
             chemistry;
-        SetStatus($"Открыта карточка поля {field.FieldId}.");
+
+        _planCropButton.Disabled = !field.IsOwned;
+        SetStatus(field.IsOwned
+            ? "Собственное поле выбрано. Можно назначить культуру сезона."
+            : "Поле района выбрано. Планировать культуру можно только на собственных полях.");
+    }
+
+    private void PlanSelectedCrop()
+    {
+        if (_state is null || _selectedField is null)
+        {
+            SetStatus("Сначала выберите собственное поле.");
+            return;
+        }
+
+        var cropId = _cropChoice.Selected switch
+        {
+            0 => new CatalogId("winter_wheat"),
+            1 => new CatalogId("corn"),
+            2 => new CatalogId("sunflower"),
+            3 => new CatalogId("soy"),
+            _ => new CatalogId("winter_wheat")
+        };
+
+        var command = new PlanCropCommand(
+            EntityId.New(),
+            EntityId.New(),
+            null,
+            _selectedField.FieldId,
+            cropId);
+        var result = _commandBus.Execute(_state, command);
+
+        if (!result.Succeeded)
+        {
+            SetStatus($"Не удалось назначить культуру: {result.Code}.");
+            return;
+        }
+
+        SetStatus($"План принят: {CropName(cropId)}. Решение записано в кампанию.");
+        Refresh();
     }
 
     private void SetStatus(string text)
@@ -397,6 +484,15 @@ public partial class Main : Control
             GD.PushError($"Could not render/write startup error: {loggingException}");
         }
     }
+
+    private static string CropName(CatalogId cropId) => cropId.Value switch
+    {
+        "winter_wheat" => "озимая пшеница",
+        "corn" => "кукуруза",
+        "sunflower" => "подсолнечник",
+        "soy" => "соя",
+        _ => cropId.Value
+    };
 
     private static string TranslateDrainage(string drainage) => drainage switch
     {
