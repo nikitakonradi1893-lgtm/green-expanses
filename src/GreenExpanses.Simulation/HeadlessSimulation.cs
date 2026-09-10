@@ -30,7 +30,8 @@ public static class GameStateFactory
                 CurrentDateTime = CampaignEpoch,
                 RngState = DeterministicRngService.CreateInitialState(worldSeed),
                 CompletedDays = 0
-            }
+            },
+            EventLog = new EventLog()
         };
     }
 
@@ -80,6 +81,7 @@ public static class CanonicalDiagnostics
         builder.Append("farm=").Append(state.Farm.PlayerFarmId).Append('\n');
         builder.Append("cash=").Append(state.Economy.Cash).Append('\n');
         builder.Append("debt=").Append(state.Economy.Debt).Append('\n');
+        builder.Append("events=").Append(state.EventLog.Count.ToString(CultureInfo.InvariantCulture)).Append('\n');
 
         foreach (var stream in state.Simulation.RngState.Streams.OrderBy(static pair => pair.Key, StringComparer.Ordinal))
         {
