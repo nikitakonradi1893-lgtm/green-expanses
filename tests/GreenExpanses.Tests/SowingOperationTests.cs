@@ -63,7 +63,7 @@ public sealed class SowingOperationTests
     [Fact]
     public void PlannedSowing_CanStartAndProgressByDay()
     {
-        var state = CreateStateWithScheduledSowing(4.92m);
+        var state = CreateStateWithScheduledSowing(1m);
         var bus = FirstPlayableCommandBusFactory.Create();
         var operationId = Assert.Single(state.Farm.Operations).OperationId;
 
@@ -114,7 +114,7 @@ public sealed class SowingOperationTests
     [Fact]
     public void SowingProgress_RoundTripsThroughSaveV1()
     {
-        var state = CreateStateWithScheduledSowing(4.92m);
+        var state = CreateStateWithScheduledSowing(1m);
         var bus = FirstPlayableCommandBusFactory.Create();
         var operationId = Assert.Single(state.Farm.Operations).OperationId;
         Assert.True(bus.Execute(state, new StartSowingOperationCommand(EntityId.New(), EntityId.New(), null, operationId)).Succeeded);
