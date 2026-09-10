@@ -4,29 +4,45 @@ namespace GreenExpanses.Infrastructure;
 
 public static class RngStreams
 {
+    public const string Weather = "weather";
+    public const string Market = "market";
+    public const string Land = "land";
+    public const string Contractors = "contractors";
+    public const string UsedMachinery = "used_machinery";
+    public const string Failures = "failures";
+    public const string Quality = "quality";
+
     public static readonly string[] All =
     [
-        "weather",
-        "market",
-        "land",
-        "contractors",
-        "used_machinery",
-        "failures",
-        "quality"
+        Weather,
+        Market,
+        Land,
+        Contractors,
+        UsedMachinery,
+        Failures,
+        Quality
     ];
 }
 
-public sealed class DeterministicRngService
+public interface IDeterministicRng
 {
+    ulong NextUInt64(string streamName);
+    double NextUnitDouble(string streamName);
+    int NextInt(string streamName, int minInclusive, int maxExclusive);
+    RngState Snapshot();
+}
+
+public sealed class DeterministicRngService : IDeterministicRng
+{
+    private readonly ulong _worldSeed;
     private readonly RngState _state;
 
     public DeterministicRngService(ulong worldSeed, RngState? state = null)
     {
-        _state = state ?? CreateInitialState(worldSeed);
-        EnsureKnownStreams(worldSeed);
+        _worldSeed = worldSeed;
+        _state = state is null ? CreateInitialState(worldSeed) : CloneState(state);
+        EnsureKnownStreams();
     }
-
-    public RngState State => _state;
 
     public ulong NextUInt64(string streamName)
     {
@@ -49,6 +65,27 @@ public sealed class DeterministicRngService
         return (NextUInt64(streamName) >> 11) * (1.0 / (1UL << 53));
     }
 
+    public int NextInt(string streamName, int minInclusive, int maxExclusive)
+    {
+        if (minInclusive >= maxExclusive)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxExclusive), maxExclusive, "maxExclusive must be greater than minInclusive.");
+        }
+
+        var range = (ulong)(maxExclusive - minInclusive);
+        var threshold = unchecked((0UL - range) % range);
+        ulong value;
+        do
+        {
+            value = NextUInt64(streamName);
+        }
+        while (value < threshold);
+
+        return minInclusive + (int)(value % range);
+    }
+
+    public RngState Snapshot() => CloneState(_state);
+
     public static RngState CreateInitialState(ulong worldSeed)
     {
         var state = new RngState();
@@ -60,11 +97,20 @@ public sealed class DeterministicRngService
         return state;
     }
 
-    private void EnsureKnownStreams(ulong worldSeed)
+    public static RngState CloneState(RngState source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        return new RngState
+        {
+            Streams = new Dictionary<string, ulong>(source.Streams, StringComparer.Ordinal)
+        };
+    }
+
+    private void EnsureKnownStreams()
     {
         foreach (var stream in RngStreams.All)
         {
-            _state.Streams.TryAdd(stream, MixSeed(worldSeed, stream));
+            _state.Streams.TryAdd(stream, MixSeed(_worldSeed, stream));
         }
     }
 
