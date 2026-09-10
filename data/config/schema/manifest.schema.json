@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "green-expanses/config/manifest/1",
+  "type": "object",
+  "required": ["configVersion", "catalogs"],
+  "properties": {
+    "configVersion": { "type": "string", "minLength": 1 },
+    "catalogs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "file", "schemaVersion"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$" },
+          "file": { "type": "string", "minLength": 1 },
+          "schemaVersion": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": true
+}
