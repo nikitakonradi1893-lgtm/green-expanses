@@ -79,6 +79,7 @@ public static class FirstPlayableCommandBusFactory
         var bus = new CommandBus();
         bus.Register(new PlanCropExecutor(), [new PlanCropValidator()], [new PlanCropAuthorizer()]);
         bus.Register(new ScheduleSowingOperationExecutor(), [new ScheduleSowingOperationValidator()], [new ScheduleSowingOperationAuthorizer()]);
+        bus.Register(new StartSowingOperationExecutor(), [new StartSowingOperationValidator()], [new StartSowingOperationAuthorizer()]);
         bus.Register(new OrderSoilAnalysisExecutor(), [new OrderSoilAnalysisValidator()], [new OrderSoilAnalysisAuthorizer()]);
         return bus;
     }
