@@ -1,6 +1,7 @@
 using GreenExpanses.Application.Commands;
 using GreenExpanses.Domain;
 using GreenExpanses.Simulation;
+using Xunit;
 
 namespace GreenExpanses.Tests;
 
