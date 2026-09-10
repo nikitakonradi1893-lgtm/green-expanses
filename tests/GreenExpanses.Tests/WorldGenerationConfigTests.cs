@@ -26,7 +26,11 @@ public sealed class WorldGenerationConfigTests
         var typed = WorldGenerationConfigLoader.Load(runtime.Config!);
         var bundled = WorldGenerationConfigLoader.LoadBundled();
 
-        Assert.Equal(bundled, typed);
+        Assert.Equal(bundled.Id, typed.Id);
+        Assert.Equal(bundled.FieldCount, typed.FieldCount);
+        Assert.Equal(bundled.AreaBands, typed.AreaBands);
+        Assert.Equal(bundled.DistanceBands, typed.DistanceBands);
+        Assert.Equal(bundled.QualityBands, typed.QualityBands);
     }
 
     private static string FindConfigRoot()
