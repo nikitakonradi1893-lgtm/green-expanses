@@ -1,0 +1,30 @@
+# .NET
+bin/
+obj/
+TestResults/
+artifacts/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Game/runtime local state
+saves/
+*.save
+*.save.json
+
+# Secrets/local overrides
+.env
+.env.*
+!.env.example
+secrets.json
+
+# Godot (future client)
+.godot/
