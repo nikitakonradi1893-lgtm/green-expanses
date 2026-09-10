@@ -1,0 +1,68 @@
+name: windows-first-playable
+
+on:
+  push:
+    branches: [ main, build/windows-first-playable ]
+    paths:
+      - 'src/**'
+      - 'data/config/**'
+      - '.github/workflows/windows-first-playable.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Download Godot 4.7.2 .NET editor and templates
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Invoke-WebRequest -Uri 'https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_mono_win64.zip' -OutFile 'godot.zip'
+          Invoke-WebRequest -Uri 'https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_mono_export_templates.tpz' -OutFile 'templates.tpz'
+          Expand-Archive -Path 'godot.zip' -DestinationPath 'godot'
+          Copy-Item 'templates.tpz' 'templates.zip'
+          Expand-Archive -Path 'templates.zip' -DestinationPath 'godot-templates'
+
+      - name: Install export templates
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $target = Join-Path $env:APPDATA 'Godot\export_templates\4.7.2.stable.mono'
+          New-Item -ItemType Directory -Force -Path $target | Out-Null
+          $source = Join-Path $PWD 'godot-templates\templates\*'
+          Copy-Item $source $target -Recurse -Force
+          Write-Host "Installed templates to $target"
+
+      - name: Build C# client
+        run: dotnet build src/GreenExpanses.Godot/GreenExpanses.Godot.csproj --configuration Release
+
+      - name: Import and export Windows build
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $godot = (Get-ChildItem (Join-Path $PWD 'godot') -Recurse -Filter '*console.exe' | Select-Object -First 1).FullName
+          if (-not $godot) { throw 'Godot .NET console executable not found.' }
+          New-Item -ItemType Directory -Force -Path 'build\windows' | Out-Null
+          & $godot --headless --path 'src/GreenExpanses.Godot' --editor --quit
+          if ($LASTEXITCODE -ne 0) { throw "Godot import failed with exit code $LASTEXITCODE" }
+          & $godot --headless --path 'src/GreenExpanses.Godot' --export-release 'Windows Desktop' (Join-Path $PWD 'build\windows\GreenExpanses.exe')
+          if ($LASTEXITCODE -ne 0) { throw "Godot export failed with exit code $LASTEXITCODE" }
+          if (-not (Test-Path 'build\windows\GreenExpanses.exe')) { throw 'GreenExpanses.exe was not produced.' }
+          Get-ChildItem 'build\windows' -Recurse | Format-Table FullName, Length
+
+      - name: Upload playable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GreenExpanses-FirstPlayable-Windows
+          path: build/windows/**
+          if-no-files-found: error
+          retention-days: 14
