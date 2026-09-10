@@ -13,12 +13,24 @@ public static class GameStateFactory
     {
         return new GameState
         {
-            CampaignId = new EntityId(DeterministicGuid(worldSeed, 0xC0A1UL)),
-            WorldSeed = worldSeed,
-            CurrentDateTime = CampaignEpoch,
-            DifficultyProfileId = new CatalogId(difficultyProfileId),
-            PlayerFarmId = new EntityId(DeterministicGuid(worldSeed, 0xFA41UL)),
-            RngState = DeterministicRngService.CreateInitialState(worldSeed)
+            Campaign = new CampaignState
+            {
+                Id = new EntityId(DeterministicGuid(worldSeed, 0xC0A1UL)),
+                WorldSeed = worldSeed,
+                DifficultyProfileId = new CatalogId(difficultyProfileId)
+            },
+            World = new WorldState(),
+            Farm = new FarmState
+            {
+                PlayerFarmId = new EntityId(DeterministicGuid(worldSeed, 0xFA41UL))
+            },
+            Economy = new EconomyState(),
+            Simulation = new SimulationState
+            {
+                CurrentDateTime = CampaignEpoch,
+                RngState = DeterministicRngService.CreateInitialState(worldSeed),
+                CompletedDays = 0
+            }
         };
     }
 
@@ -35,17 +47,21 @@ public static class EmptyDailySimulation
 {
     public static void Advance(GameState state, int days)
     {
+        ArgumentNullException.ThrowIfNull(state);
         if (days < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(days));
         }
 
-        var rng = new DeterministicRngService(state.WorldSeed, state.RngState);
+        var rng = new DeterministicRngService(state.Campaign.WorldSeed, state.Simulation.RngState);
         for (var day = 0; day < days; day++)
         {
-            _ = rng.NextUInt64("weather");
-            state.CurrentDateTime = state.CurrentDateTime.AddDays(1);
+            _ = rng.NextUInt64(RngStreams.Weather);
+            state.Simulation.CurrentDateTime = state.Simulation.CurrentDateTime.AddDays(1);
+            state.Simulation.CompletedDays++;
         }
+
+        state.Simulation.RngState = rng.Snapshot();
     }
 }
 
@@ -53,14 +69,19 @@ public static class CanonicalDiagnostics
 {
     public static string Serialize(GameState state)
     {
-        var builder = new StringBuilder();
-        builder.Append("campaign=").Append(state.CampaignId).Append('\n');
-        builder.Append("seed=").Append(state.WorldSeed.ToString(CultureInfo.InvariantCulture)).Append('\n');
-        builder.Append("datetime=").Append(state.CurrentDateTime).Append('\n');
-        builder.Append("difficulty=").Append(state.DifficultyProfileId).Append('\n');
-        builder.Append("farm=").Append(state.PlayerFarmId).Append('\n');
+        ArgumentNullException.ThrowIfNull(state);
 
-        foreach (var stream in state.RngState.Streams.OrderBy(static pair => pair.Key, StringComparer.Ordinal))
+        var builder = new StringBuilder();
+        builder.Append("campaign=").Append(state.Campaign.Id).Append('\n');
+        builder.Append("seed=").Append(state.Campaign.WorldSeed.ToString(CultureInfo.InvariantCulture)).Append('\n');
+        builder.Append("datetime=").Append(state.Simulation.CurrentDateTime).Append('\n');
+        builder.Append("completed_days=").Append(state.Simulation.CompletedDays.ToString(CultureInfo.InvariantCulture)).Append('\n');
+        builder.Append("difficulty=").Append(state.Campaign.DifficultyProfileId).Append('\n');
+        builder.Append("farm=").Append(state.Farm.PlayerFarmId).Append('\n');
+        builder.Append("cash=").Append(state.Economy.Cash).Append('\n');
+        builder.Append("debt=").Append(state.Economy.Debt).Append('\n');
+
+        foreach (var stream in state.Simulation.RngState.Streams.OrderBy(static pair => pair.Key, StringComparer.Ordinal))
         {
             builder.Append("rng.").Append(stream.Key).Append('=').Append(stream.Value.ToString(CultureInfo.InvariantCulture)).Append('\n');
         }
