@@ -7,17 +7,17 @@ namespace GreenExpanses.Simulation;
 
 public static class GameStateFactory
 {
-    private static readonly DateTime CampaignEpoch = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Unspecified);
+    private static readonly GameDateTime CampaignEpoch = new(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Unspecified));
 
     public static GameState Create(ulong worldSeed, string difficultyProfileId = "normal")
     {
         return new GameState
         {
-            CampaignId = DeterministicGuid(worldSeed, 0xC0A1UL),
+            CampaignId = new EntityId(DeterministicGuid(worldSeed, 0xC0A1UL)),
             WorldSeed = worldSeed,
             CurrentDateTime = CampaignEpoch,
-            DifficultyProfileId = difficultyProfileId,
-            PlayerFarmId = DeterministicGuid(worldSeed, 0xFA41UL),
+            DifficultyProfileId = new CatalogId(difficultyProfileId),
+            PlayerFarmId = new EntityId(DeterministicGuid(worldSeed, 0xFA41UL)),
             RngState = DeterministicRngService.CreateInitialState(worldSeed)
         };
     }
@@ -54,11 +54,11 @@ public static class CanonicalDiagnostics
     public static string Serialize(GameState state)
     {
         var builder = new StringBuilder();
-        builder.Append("campaign=").Append(state.CampaignId.ToString("D", CultureInfo.InvariantCulture)).Append('\n');
+        builder.Append("campaign=").Append(state.CampaignId).Append('\n');
         builder.Append("seed=").Append(state.WorldSeed.ToString(CultureInfo.InvariantCulture)).Append('\n');
-        builder.Append("datetime=").Append(state.CurrentDateTime.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture)).Append('\n');
+        builder.Append("datetime=").Append(state.CurrentDateTime).Append('\n');
         builder.Append("difficulty=").Append(state.DifficultyProfileId).Append('\n');
-        builder.Append("farm=").Append(state.PlayerFarmId.ToString("D", CultureInfo.InvariantCulture)).Append('\n');
+        builder.Append("farm=").Append(state.PlayerFarmId).Append('\n');
 
         foreach (var stream in state.RngState.Streams.OrderBy(static pair => pair.Key, StringComparer.Ordinal))
         {
