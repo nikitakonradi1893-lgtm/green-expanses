@@ -7,6 +7,7 @@ public sealed class GameState
     public required FarmState Farm { get; init; }
     public required EconomyState Economy { get; init; }
     public required SimulationState Simulation { get; init; }
+    public required EventLog EventLog { get; init; }
 
     public EntityId CampaignId => Campaign.Id;
     public ulong WorldSeed => Campaign.WorldSeed;
