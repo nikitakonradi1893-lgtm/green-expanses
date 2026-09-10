@@ -19,4 +19,7 @@
     <ProjectReference Include="../../src/GreenExpanses.Data/GreenExpanses.Data.csproj" />
     <ProjectReference Include="../../src/GreenExpanses.Persistence/GreenExpanses.Persistence.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="../../data/fixtures/core-011-empty-365.json" Link="fixtures/core-011-empty-365.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>
