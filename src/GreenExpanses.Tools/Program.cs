@@ -5,9 +5,8 @@ var seed = ReadUnsignedLong(args, "--seed", 1UL);
 var days = ReadInt(args, "--days", 0);
 var difficulty = ReadString(args, "--difficulty", "normal");
 
-var state = GameStateFactory.Create(seed, difficulty);
-EmptyDailySimulation.Advance(state, days);
-Console.Write(CanonicalDiagnostics.Serialize(state));
+var result = HeadlessSimulation.Run(new HeadlessRunRequest(seed, days, difficulty));
+Console.Write(result.CanonicalDiagnostics);
 
 static string ReadString(string[] args, string name, string fallback)
 {
