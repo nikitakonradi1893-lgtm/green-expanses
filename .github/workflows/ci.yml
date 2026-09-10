@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  build-test-determinism:
+  core-gate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,9 +17,13 @@ jobs:
         run: dotnet restore GreenExpanses.sln
       - name: Build
         run: dotnet build GreenExpanses.sln --configuration Release --no-restore
-      - name: Test
+      - name: Unit and integration tests
         run: dotnet test GreenExpanses.sln --configuration Release --no-build
-      - name: Deterministic headless smoke
+      - name: Deterministic 365-day fixture
+        run: dotnet test tests/GreenExpanses.Tests/GreenExpanses.Tests.csproj --configuration Release --no-build --filter "FullyQualifiedName~Core011VerticalFixtureTests"
+      - name: Runtime config validation
+        run: dotnet run --project src/GreenExpanses.Tools --configuration Release --no-build -- --validate-config data/config
+      - name: Headless CLI reproducibility smoke
         shell: bash
         run: |
           dotnet run --project src/GreenExpanses.Tools --configuration Release --no-build -- --seed 20260910 --days 365 > run-a.txt
