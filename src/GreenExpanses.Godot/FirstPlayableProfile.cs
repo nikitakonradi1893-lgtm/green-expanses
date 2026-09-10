@@ -10,9 +10,11 @@ internal sealed record FirstPlayableProfile(
     decimal PrototypeSowingWorkWidthM,
     decimal PrototypeSowingSpeedKmh,
     decimal PrototypeFieldEfficiency,
-    decimal PrototypeSowingOperatingCostRubPerHour)
+    decimal PrototypeSowingOperatingCostRubPerHour,
+    decimal PrototypeSoilAnalysisCostRub,
+    int PrototypeSoilAnalysisDurationDays)
 {
-    public static FirstPlayableProfile Default { get; } = new(30m, 10m, 1_000_000m, 6m, 10m, 0.82m, 6_500m);
+    public static FirstPlayableProfile Default { get; } = new(30m, 10m, 1_000_000m, 6m, 10m, 0.82m, 6_500m, 18_500m, 3);
 
     public decimal PrototypeSowingProductivityHaPerHour =>
         PrototypeSowingWorkWidthM * PrototypeSowingSpeedKmh * PrototypeFieldEfficiency / 10m;
@@ -33,6 +35,8 @@ internal sealed record FirstPlayableProfile(
             item.GetProperty("prototypeSowingWorkWidthM").GetDecimal(),
             item.GetProperty("prototypeSowingSpeedKmh").GetDecimal(),
             item.GetProperty("prototypeFieldEfficiency").GetDecimal(),
-            item.GetProperty("prototypeSowingOperatingCostRubPerHour").GetDecimal());
+            item.GetProperty("prototypeSowingOperatingCostRubPerHour").GetDecimal(),
+            item.GetProperty("prototypeSoilAnalysisCostRub").GetDecimal(),
+            item.GetProperty("prototypeSoilAnalysisDurationDays").GetInt32());
     }
 }

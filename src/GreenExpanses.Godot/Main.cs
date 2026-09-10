@@ -25,9 +25,11 @@ public partial class Main : Control
     private Label _todayLabel = null!;
     private Label _attentionLabel = null!;
     private Label _fieldDetail = null!;
+    private Label _soilAnalysisLabel = null!;
     private VBoxContainer _fieldRows = null!;
     private OptionButton _cropChoice = null!;
     private Button _planCropButton = null!;
+    private Button _soilAnalysisButton = null!;
     private Label _operationPreview = null!;
     private Button _scheduleOperationButton = null!;
 
@@ -130,7 +132,7 @@ public partial class Main : Control
         var todayTitle = new Label { Text = "СЕГОДНЯ" };
         todayTitle.AddThemeFontSizeOverride("font_size", 20);
         center.AddChild(todayTitle);
-        _todayLabel = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, Text = "Выберите собственное поле и назначьте культуру сезона." };
+        _todayLabel = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, Text = "Выберите собственное поле и начните сезон с анализа почвы." };
         center.AddChild(_todayLabel);
         center.AddChild(new HSeparator());
         var fieldsTitle = new Label { Text = "ПОЛЯ ХОЗЯЙСТВА И РАЙОНА" };
@@ -147,14 +149,14 @@ public partial class Main : Control
 
     private void BuildRightColumn(HBoxContainer body)
     {
-        var right = new VBoxContainer { CustomMinimumSize = new Vector2(380, 0) };
+        var right = new VBoxContainer { CustomMinimumSize = new Vector2(400, 0) };
         right.AddThemeConstantOverride("separation", 8);
         body.AddChild(right);
 
         var attentionTitle = new Label { Text = "ТРЕБУЕТ ВНИМАНИЯ" };
         attentionTitle.AddThemeFontSizeOverride("font_size", 18);
         right.AddChild(attentionTitle);
-        _attentionLabel = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, Text = "ПЛАН — для собственного поля ещё не выбрана культура сезона." };
+        _attentionLabel = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, Text = "АНАЛИЗ — начните с анализа почвы на собственном поле." };
         right.AddChild(_attentionLabel);
         right.AddChild(new HSeparator());
 
@@ -163,6 +165,12 @@ public partial class Main : Control
         right.AddChild(fieldTitle);
         _fieldDetail = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, Text = "Выберите поле из списка." };
         right.AddChild(_fieldDetail);
+
+        _soilAnalysisLabel = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, Text = "Анализ почвы: выберите собственное поле." };
+        right.AddChild(_soilAnalysisLabel);
+        _soilAnalysisButton = new Button { Text = "Заказать анализ почвы", Disabled = true, CustomMinimumSize = new Vector2(0, 38) };
+        _soilAnalysisButton.Pressed += OrderSoilAnalysis;
+        right.AddChild(_soilAnalysisButton);
         right.AddChild(new HSeparator());
 
         var planTitle = new Label { Text = "ПЛАН СЕЗОНА" };
@@ -232,7 +240,7 @@ public partial class Main : Control
     private void Save()
     {
         if (_state is null || _autosave is null) return;
-        _autosave.Save(_state, _configVersion, "internal-first-playable-v3");
+        _autosave.Save(_state, _configVersion, "internal-first-playable-v4");
         SetStatus("Игра сохранена.");
     }
 
@@ -257,19 +265,13 @@ public partial class Main : Control
         _dateLabel.Text = $"Дата: {view.CurrentDateTime.Value:dd.MM.yyyy}";
         _cashLabel.Text = $"Деньги: {view.CashRub:N0} ₽";
 
-        var ownedPlan = _state.Farm.CropPlans.FirstOrDefault(plan => _state.Farm.OwnedFieldIds.Contains(plan.FieldId));
-        var ownedOperation = _state.Farm.Operations.FirstOrDefault(operation => _state.Farm.OwnedFieldIds.Contains(operation.FieldId));
+        var ownedFieldId = _state.Farm.OwnedFieldIds.FirstOrDefault();
+        var ownedPlan = _state.Farm.CropPlans.FirstOrDefault(plan => plan.FieldId == ownedFieldId);
+        var ownedOperation = _state.Farm.Operations.FirstOrDefault(operation => operation.FieldId == ownedFieldId);
+        var ownedAnalysis = LatestSoilAnalysis(ownedFieldId);
         _capacityLabel.Text = ownedOperation is null ? "Capacity Forecast: не рассчитан" : $"Посев: {ownedOperation.RequiredHours:N1} ч";
-        _todayLabel.Text = ownedPlan is null
-            ? $"Хозяйство «Наследство»: {view.OwnedAreaHa:N1} га. Первое решение сезона — выбрать культуру для собственного поля."
-            : ownedOperation is null
-                ? $"План сезона: {CropName(ownedPlan.CropId)}. Рассчитайте и подтвердите первую операцию — посев."
-                : $"Посев запланирован: {CropName(ownedOperation.CropId)}, {ownedOperation.RemainingArea.Value:N1} га, {ownedOperation.RequiredHours:N1} ч.";
-        _attentionLabel.Text = ownedPlan is null
-            ? "ПЛАН — для собственного поля ещё не выбрана культура сезона."
-            : ownedOperation is null
-                ? "ОПЕРАЦИЯ — посев рассчитан, но ещё не подтверждён."
-                : $"Посев: статус «запланировано», оценочная стоимость {ownedOperation.EstimatedCost.Value:N0} ₽.";
+        _todayLabel.Text = TodayText(view, ownedPlan, ownedOperation, ownedAnalysis);
+        _attentionLabel.Text = AttentionText(ownedPlan, ownedOperation, ownedAnalysis);
 
         foreach (var child in _fieldRows.GetChildren()) child.QueueFree();
         foreach (var field in view.Fields)
@@ -277,12 +279,14 @@ public partial class Main : Control
             var owned = field.IsOwned ? "СВОЁ" : "РАЙОН";
             var plan = _state.Farm.CropPlans.FirstOrDefault(item => item.FieldId == field.FieldId);
             var operation = _state.Farm.Operations.FirstOrDefault(item => item.FieldId == field.FieldId);
+            var analysis = LatestSoilAnalysis(field.FieldId);
             var planText = plan is null ? string.Empty : $"  •  {CropName(plan.CropId)}";
             var operationText = operation is null ? string.Empty : "  •  посев запланирован";
+            var analysisText = analysis is null ? string.Empty : analysis.Status == new CatalogId("completed") ? "  •  анализ готов" : "  •  анализ в работе";
             var button = new Button
             {
                 Text = field.IsOwned
-                    ? $"[{owned}] {field.AreaHa:N1} га  •  {field.DistanceKm:N1} км  •  плодородие {field.Fertility:N0}{planText}{operationText}"
+                    ? $"[{owned}] {field.AreaHa:N1} га  •  {field.DistanceKm:N1} км  •  плодородие {field.Fertility:N0}{analysisText}{planText}{operationText}"
                     : $"[{owned}] {field.AreaHa:N1} га  •  {field.DistanceKm:N1} км  •  качество {field.Fertility:N0}  •  дренаж: {TranslateDrainage(field.Drainage)}",
                 Alignment = HorizontalAlignment.Left,
                 CustomMinimumSize = new Vector2(0, 38)
@@ -299,87 +303,192 @@ public partial class Main : Control
         }
         else
         {
+            _soilAnalysisButton.Disabled = true;
             _planCropButton.Disabled = true;
             _scheduleOperationButton.Disabled = true;
-            _operationPreview.Text = "Сначала выберите собственное поле и культуру.";
+            _operationPreview.Text = "Сначала выберите собственное поле.";
+            _soilAnalysisLabel.Text = "Анализ почвы: выберите собственное поле.";
         }
+    }
+
+    private string TodayText(FirstPlayableView view, FieldCropPlan? ownedPlan, FieldOperationPlan? ownedOperation, SoilAnalysisOrder? ownedAnalysis)
+    {
+        if (ownedAnalysis is null) return $"Хозяйство «Наследство»: {view.OwnedAreaHa:N1} га. Первое решение — заказать анализ почвы.";
+        if (ownedAnalysis.Status != new CatalogId("completed")) return $"Анализ почвы в работе. Осталось дней: {RemainingDays(ownedAnalysis)}.";
+        if (ownedPlan is null) return "Анализ почвы готов. Теперь выберите культуру сезона.";
+        if (ownedOperation is null) return $"План сезона: {CropName(ownedPlan.CropId)}. Рассчитайте и подтвердите первую операцию — посев.";
+        return $"Посев запланирован: {CropName(ownedOperation.CropId)}, {ownedOperation.RemainingArea.Value:N1} га, {ownedOperation.RequiredHours:N1} ч.";
+    }
+
+    private string AttentionText(FieldCropPlan? ownedPlan, FieldOperationPlan? ownedOperation, SoilAnalysisOrder? ownedAnalysis)
+    {
+        if (ownedAnalysis is null) return $"АНАЛИЗ — закажите анализ почвы: {_profile.PrototypeSoilAnalysisCostRub:N0} ₽, {_profile.PrototypeSoilAnalysisDurationDays} дн.";
+        if (ownedAnalysis.Status != new CatalogId("completed")) return $"АНАЛИЗ — лаборатория работает, осталось дней: {RemainingDays(ownedAnalysis)}.";
+        if (ownedPlan is null) return "ПЛАН — анализ готов, но культура сезона ещё не выбрана.";
+        if (ownedOperation is null) return "ОПЕРАЦИЯ — посев рассчитан, но ещё не подтверждён.";
+        return $"Посев: статус «запланировано», оценочная стоимость {ownedOperation.EstimatedCost.Value:N0} ₽.";
     }
 
     private void SelectField(FirstPlayableFieldView field)
     {
         _selectedField = field;
         var ownership = field.IsOwned ? "Собственное поле" : "Поле района";
-        var chemistry = field.IsOwned
-            ? $"Стартовое обследование\npH: {field.Ph:N2}\nN / P / K: {field.SoilN:N1} / {field.SoilP:N1} / {field.SoilK:N1}\nОрганическое вещество: {field.OrganicMatter:N1}"
-            : "Агрохимия: точные N/P/K и pH должны раскрываться после анализа почвы. Механика анализа пока не подключена.";
-        var plan = _state?.Farm.CropPlans.FirstOrDefault(item => item.FieldId == field.FieldId);
-        var operation = _state?.Farm.Operations.FirstOrDefault(item => item.FieldId == field.FieldId);
-        var planText = plan is null ? "не назначена" : CropName(plan.CropId);
-        _fieldDetail.Text = $"{ownership}\n\nПлощадь: {field.AreaHa:N1} га\nРасстояние от базы: {field.DistanceKm:N1} км\nПлодородие: {field.Fertility:N1}/100\nДренаж: {TranslateDrainage(field.Drainage)}\nКультура сезона: {planText}\n\n{chemistry}";
-        _planCropButton.Disabled = !field.IsOwned;
+        var analysis = _state is null ? null : LatestSoilAnalysis(field.FieldId);
+        var chemistry = field.IsOwned && analysis?.Status == new CatalogId("completed")
+            ? $"pH: {field.Ph:N2}\nN / P / K: {field.SoilN:N1} / {field.SoilP:N1} / {field.SoilK:N1}\nОрганическое вещество: {field.OrganicMatter:N1}"
+            : field.IsOwned
+                ? "Агрохимия: точные N/P/K и pH появятся после завершения анализа почвы."
+                : "Агрохимия: чужие поля требуют отдельного обследования перед раскрытием точных показателей.";
 
-        if (!field.IsOwned || plan is null)
-        {
-            _scheduleOperationButton.Disabled = true;
-            _operationPreview.Text = field.IsOwned ? "Сначала назначьте культуру сезона." : "Операции доступны только для собственных полей.";
-            return;
-        }
-
-        if (operation is not null)
-        {
-            _scheduleOperationButton.Disabled = true;
-            _operationPreview.Text = $"ПОСЕВ УЖЕ ЗАПЛАНИРОВАН\nОсталось: {operation.RemainingArea.Value:N1} га\nТребуется: {operation.RequiredHours:N2} ч\nОценочная стоимость: {operation.EstimatedCost.Value:N0} ₽";
-            return;
-        }
-
-        var preview = CalculateSowingPreview(new AreaHa(field.AreaHa));
-        _scheduleOperationButton.Disabled = false;
-        _operationPreview.Text =
-            $"Культура: {CropName(plan.CropId)}\n" +
+        _fieldDetail.Text =
+            $"{ownership}\n\n" +
             $"Площадь: {field.AreaHa:N1} га\n" +
-            $"Ширина / скорость / Kₑ: {_profile.PrototypeSowingWorkWidthM:N1} м / {_profile.PrototypeSowingSpeedKmh:N1} км/ч / {_profile.PrototypeFieldEfficiency:N2}\n" +
-            $"Производительность: {preview.Productivity:N2} га/ч\n" +
-            $"RequiredHours: {preview.RequiredHours:N2} ч\n" +
-            $"Предварительная стоимость: {preview.EstimatedCost.Value:N0} ₽";
+            $"Расстояние от базы: {field.DistanceKm:N1} км\n" +
+            $"Плодородие: {field.Fertility:N1}/100\n" +
+            $"Дренаж: {TranslateDrainage(field.Drainage)}\n\n" + chemistry;
+
+        UpdateSoilAnalysisControls(field, analysis);
+        UpdatePlanningControls(field);
+        SetStatus($"Открыта карточка поля {field.FieldId}.");
+    }
+
+    private void UpdateSoilAnalysisControls(FirstPlayableFieldView field, SoilAnalysisOrder? analysis)
+    {
+        if (!field.IsOwned)
+        {
+            _soilAnalysisLabel.Text = "Анализ почвы: доступен только для собственных полей.";
+            _soilAnalysisButton.Disabled = true;
+            return;
+        }
+
+        if (analysis is null)
+        {
+            _soilAnalysisLabel.Text = $"Анализ почвы: не заказан. Стоимость {_profile.PrototypeSoilAnalysisCostRub:N0} ₽, срок {_profile.PrototypeSoilAnalysisDurationDays} дн.";
+            _soilAnalysisButton.Text = "Заказать анализ почвы";
+            _soilAnalysisButton.Disabled = false;
+            return;
+        }
+
+        if (analysis.Status == new CatalogId("completed"))
+        {
+            _soilAnalysisLabel.Text = "Анализ почвы: готов. Точные показатели открыты в карточке поля.";
+            _soilAnalysisButton.Text = "Анализ готов";
+            _soilAnalysisButton.Disabled = true;
+            return;
+        }
+
+        _soilAnalysisLabel.Text = $"Анализ почвы: выполняется. Осталось дней: {RemainingDays(analysis)}.";
+        _soilAnalysisButton.Text = "Анализ в работе";
+        _soilAnalysisButton.Disabled = true;
+    }
+
+    private void UpdatePlanningControls(FirstPlayableFieldView field)
+    {
+        if (_state is null || !field.IsOwned)
+        {
+            _planCropButton.Disabled = true;
+            _scheduleOperationButton.Disabled = true;
+            _operationPreview.Text = "Сначала выберите собственное поле.";
+            return;
+        }
+
+        var analysisReady = LatestSoilAnalysis(field.FieldId)?.Status == new CatalogId("completed");
+        var cropPlan = _state.Farm.CropPlans.FirstOrDefault(plan => plan.FieldId == field.FieldId);
+        var operation = _state.Farm.Operations.FirstOrDefault(plan => plan.FieldId == field.FieldId && plan.OperationType == new CatalogId("sowing"));
+        _planCropButton.Disabled = !analysisReady;
+        if (!analysisReady)
+        {
+            _operationPreview.Text = "Сначала дождитесь анализа почвы, затем выберите культуру.";
+            _scheduleOperationButton.Disabled = true;
+            return;
+        }
+
+        if (cropPlan is null)
+        {
+            _operationPreview.Text = "Анализ готов. Выберите культуру сезона.";
+            _scheduleOperationButton.Disabled = true;
+            return;
+        }
+
+        var requiredHours = field.AreaHa / _profile.PrototypeSowingProductivityHaPerHour;
+        var cost = requiredHours * _profile.PrototypeSowingOperatingCostRubPerHour;
+        _operationPreview.Text = operation is null
+            ? $"Культура: {CropName(cropPlan.CropId)}\nПроизводительность: {_profile.PrototypeSowingProductivityHaPerHour:N2} га/ч\nВремя: {requiredHours:N2} ч\nОценочная стоимость: {cost:N0} ₽"
+            : $"Посев уже запланирован: {operation.RequiredHours:N2} ч, {operation.EstimatedCost.Value:N0} ₽.";
+        _scheduleOperationButton.Disabled = operation is not null;
+    }
+
+    private void OrderSoilAnalysis()
+    {
+        if (_state is null || _selectedField is null) return;
+        var command = new OrderSoilAnalysisCommand(
+            EntityId.New(),
+            EntityId.New(),
+            null,
+            _selectedField.FieldId,
+            new Money(_profile.PrototypeSoilAnalysisCostRub),
+            _profile.PrototypeSoilAnalysisDurationDays);
+        var result = _commandBus.Execute(_state, command);
+        SetStatus(result.Succeeded ? "Анализ почвы заказан. Деньги списаны, ждём лабораторию." : $"Анализ не заказан: {result.Code}");
+        Refresh();
     }
 
     private void PlanSelectedCrop()
     {
-        if (_state is null || _selectedField is null) { SetStatus("Сначала выберите собственное поле."); return; }
-        var cropId = _cropChoice.Selected switch
-        {
-            0 => new CatalogId("winter_wheat"),
-            1 => new CatalogId("grain_corn"),
-            2 => new CatalogId("sunflower"),
-            3 => new CatalogId("soybean"),
-            _ => new CatalogId("winter_wheat")
-        };
-        var result = _commandBus.Execute(_state, new PlanCropCommand(EntityId.New(), EntityId.New(), null, _selectedField.FieldId, cropId));
-        if (!result.Succeeded) { SetStatus($"Не удалось назначить культуру: {result.Code}."); return; }
-        SetStatus($"План принят: {CropName(cropId)}. Теперь доступен расчёт посева.");
+        if (_state is null || _selectedField is null) return;
+        var result = _commandBus.Execute(_state, new PlanCropCommand(EntityId.New(), EntityId.New(), null, _selectedField.FieldId, SelectedCropId()));
+        SetStatus(result.Succeeded ? $"Культура назначена: {CropName(SelectedCropId())}." : $"Культура не назначена: {result.Code}");
         Refresh();
     }
 
     private void ScheduleSowing()
     {
         if (_state is null || _selectedField is null) return;
-        var preview = CalculateSowingPreview(new AreaHa(_selectedField.AreaHa));
+        var requiredHours = _selectedField.AreaHa / _profile.PrototypeSowingProductivityHaPerHour;
+        var estimatedCost = decimal.Round(requiredHours * _profile.PrototypeSowingOperatingCostRubPerHour, 2, MidpointRounding.AwayFromZero);
         var result = _commandBus.Execute(_state, new ScheduleSowingOperationCommand(
-            EntityId.New(), EntityId.New(), null, _selectedField.FieldId, preview.Productivity, preview.EstimatedCost));
-        if (!result.Succeeded) { SetStatus($"Операция не подтверждена: {result.Code}."); return; }
-        SetStatus($"Посев запланирован: {preview.RequiredHours:N2} ч, резерв {preview.EstimatedCost.Value:N0} ₽.");
+            EntityId.New(),
+            EntityId.New(),
+            null,
+            _selectedField.FieldId,
+            _profile.PrototypeSowingProductivityHaPerHour,
+            new Money(estimatedCost)));
+        SetStatus(result.Succeeded ? "Посев запланирован, оценочная стоимость зарезервирована." : $"Операция не подтверждена: {result.Code}");
         Refresh();
     }
 
-    private (decimal Productivity, decimal RequiredHours, Money EstimatedCost) CalculateSowingPreview(AreaHa area)
+    private SoilAnalysisOrder? LatestSoilAnalysis(EntityId fieldId)
     {
-        var productivity = _profile.PrototypeSowingProductivityHaPerHour;
-        var requiredHours = decimal.Round(area.Value / productivity, 2, MidpointRounding.AwayFromZero);
-        var cost = decimal.Round(requiredHours * _profile.PrototypeSowingOperatingCostRubPerHour, 2, MidpointRounding.AwayFromZero);
-        return (productivity, requiredHours, new Money(cost));
+        return _state?.Farm.SoilAnalysisOrders.LastOrDefault(order => order.FieldId == fieldId);
     }
 
-    private void SetStatus(string text) { if (_status is not null) _status.Text = text; }
+    private int RemainingDays(SoilAnalysisOrder order)
+    {
+        if (_state is null) return 0;
+        return Math.Max(0, (order.DueAt.Value.Date - _state.CurrentDateTime.Value.Date).Days);
+    }
+
+    private CatalogId SelectedCropId() => _cropChoice.Selected switch
+    {
+        1 => new CatalogId("grain_corn"),
+        2 => new CatalogId("sunflower"),
+        3 => new CatalogId("soybean"),
+        _ => new CatalogId("winter_wheat")
+    };
+
+    private static string CropName(CatalogId cropId) => cropId.Value switch
+    {
+        "winter_wheat" => "озимая пшеница",
+        "grain_corn" => "кукуруза",
+        "sunflower" => "подсолнечник",
+        "soybean" => "соя",
+        _ => cropId.Value
+    };
+
+    private void SetStatus(string text)
+    {
+        if (_status is not null) _status.Text = text;
+    }
 
     private void ShowStartupError(Exception exception)
     {
@@ -392,21 +501,18 @@ public partial class Main : Control
                 AutowrapMode = TextServer.AutowrapMode.WordSmart
             };
             label.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-            label.OffsetLeft = 32; label.OffsetTop = 32; label.OffsetRight = -32; label.OffsetBottom = -32;
+            label.OffsetLeft = 32;
+            label.OffsetTop = 32;
+            label.OffsetRight = -32;
+            label.OffsetBottom = -32;
             AddChild(label);
             File.WriteAllText(ProjectSettings.GlobalizePath("user://startup_error.log"), exception.ToString());
         }
-        catch (Exception loggingException) { GD.PushError($"Could not render/write startup error: {loggingException}"); }
+        catch (Exception loggingException)
+        {
+            GD.PushError($"Could not render/write startup error: {loggingException}");
+        }
     }
-
-    private static string CropName(CatalogId cropId) => cropId.Value switch
-    {
-        "winter_wheat" => "озимая пшеница",
-        "grain_corn" or "corn" => "кукуруза",
-        "sunflower" => "подсолнечник",
-        "soybean" or "soy" => "соя",
-        _ => cropId.Value
-    };
 
     private static string TranslateDrainage(string drainage) => drainage switch
     {
