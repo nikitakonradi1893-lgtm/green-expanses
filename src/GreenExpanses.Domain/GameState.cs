@@ -50,10 +50,18 @@ public sealed class WorldState
     }
 }
 
+public sealed record FieldCropPlan
+{
+    public required EntityId FieldId { get; init; }
+    public required CatalogId CropId { get; init; }
+    public required GameDateTime PlannedAt { get; init; }
+}
+
 public sealed class FarmState
 {
     public required EntityId PlayerFarmId { get; init; }
     public List<EntityId> OwnedFieldIds { get; init; } = [];
+    public List<FieldCropPlan> CropPlans { get; init; } = [];
 }
 
 public sealed class EconomyState
