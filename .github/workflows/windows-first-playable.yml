@@ -2,7 +2,7 @@ name: windows-first-playable
 
 on:
   push:
-    branches: [ main, build/windows-first-playable ]
+    branches: [ main, build/windows-first-playable, fix/windows-startup-crash ]
     paths:
       - 'src/**'
       - 'data/config/**'
@@ -58,6 +58,19 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Godot export failed with exit code $LASTEXITCODE" }
           if (-not (Test-Path 'build\windows\GreenExpanses.exe')) { throw 'GreenExpanses.exe was not produced.' }
           Get-ChildItem 'build\windows' -Recurse | Format-Table FullName, Length
+
+      - name: Smoke test exported executable
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Push-Location 'build\windows'
+          try {
+            & '.\GreenExpanses.exe' --headless --quit-after 2
+            if ($LASTEXITCODE -ne 0) { throw "Exported game startup smoke failed with exit code $LASTEXITCODE" }
+          }
+          finally {
+            Pop-Location
+          }
 
       - name: Upload playable artifact
         uses: actions/upload-artifact@v4
