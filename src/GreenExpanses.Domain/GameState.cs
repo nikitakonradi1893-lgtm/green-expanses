@@ -60,12 +60,25 @@ public sealed record FieldOperationPlan
     public required CatalogId Status { get; init; }
 }
 
+public sealed record SoilAnalysisOrder
+{
+    public required EntityId OrderId { get; init; }
+    public required EntityId FieldId { get; init; }
+    public required GameDateTime OrderedAt { get; init; }
+    public required GameDateTime DueAt { get; init; }
+    public required Money Cost { get; init; }
+    public required CatalogId Status { get; init; }
+    public required EntityId CausationCommandId { get; init; }
+    public required EntityId CorrelationId { get; init; }
+}
+
 public sealed class FarmState
 {
     public required EntityId PlayerFarmId { get; init; }
     public List<EntityId> OwnedFieldIds { get; init; } = [];
     public List<FieldCropPlan> CropPlans { get; init; } = [];
     public List<FieldOperationPlan> Operations { get; init; } = [];
+    public List<SoilAnalysisOrder> SoilAnalysisOrders { get; init; } = [];
 }
 
 public sealed class EconomyState

@@ -28,18 +28,10 @@ public static class SaveV1Serializer
         WriteIndented = false
     };
 
-    public static string Serialize(
-        GameState state,
-        ConfigVersion configVersion,
-        string buildVersion,
-        DateTime createdAtRealTime,
-        DateTime lastSavedAtRealTime)
+    public static string Serialize(GameState state, ConfigVersion configVersion, string buildVersion, DateTime createdAtRealTime, DateTime lastSavedAtRealTime)
     {
         ArgumentNullException.ThrowIfNull(state);
-        if (string.IsNullOrWhiteSpace(buildVersion))
-        {
-            throw new ArgumentException("Build version cannot be blank.", nameof(buildVersion));
-        }
+        if (string.IsNullOrWhiteSpace(buildVersion)) throw new ArgumentException("Build version cannot be blank.", nameof(buildVersion));
 
         var dto = GameStateDto.FromDomain(state);
         var checksum = ComputeChecksum(dto);
@@ -65,42 +57,22 @@ public static class SaveV1Serializer
 
     public static SaveLoadResult Deserialize(string json)
     {
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            throw new InvalidDataException("Save data is empty.");
-        }
+        if (string.IsNullOrWhiteSpace(json)) throw new InvalidDataException("Save data is empty.");
+        var envelope = JsonSerializer.Deserialize<SaveEnvelope>(json, JsonOptions) ?? throw new InvalidDataException("Save data could not be deserialized.");
+        if (envelope.Header.SaveSchemaVersion != SchemaVersion) throw new InvalidDataException($"Unsupported save schema version '{envelope.Header.SaveSchemaVersion}'.");
 
-        var envelope = JsonSerializer.Deserialize<SaveEnvelope>(json, JsonOptions)
-            ?? throw new InvalidDataException("Save data could not be deserialized.");
-
-        if (envelope.Header.SaveSchemaVersion != SchemaVersion)
-        {
-            throw new InvalidDataException($"Unsupported save schema version '{envelope.Header.SaveSchemaVersion}'.");
-        }
-
-        var storedChecksum = string.IsNullOrWhiteSpace(envelope.Header.Checksum)
-            ? throw new InvalidDataException("Save checksum is missing.")
-            : envelope.Header.Checksum;
+        var storedChecksum = string.IsNullOrWhiteSpace(envelope.Header.Checksum) ? throw new InvalidDataException("Save checksum is missing.") : envelope.Header.Checksum;
         var actualChecksum = ComputeChecksum(envelope.State);
-        if (!CryptographicOperations.FixedTimeEquals(
-                Encoding.ASCII.GetBytes(actualChecksum),
-                Encoding.ASCII.GetBytes(storedChecksum)))
+        if (!CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(actualChecksum), Encoding.ASCII.GetBytes(storedChecksum)))
         {
             throw new InvalidDataException("Save checksum mismatch.");
         }
 
         var state = envelope.State.ToDomain();
         var referential = ReferentialIntegrityCheck.Validate(state);
-        if (!referential.IsValid)
-        {
-            throw new InvalidDataException($"Save referential integrity failed: {referential.Issues[0].Code}.");
-        }
-
+        if (!referential.IsValid) throw new InvalidDataException($"Save referential integrity failed: {referential.Issues[0].Code}.");
         var finance = FinanceIntegrityCheck.Validate(state.Economy);
-        if (!finance.IsValid)
-        {
-            throw new InvalidDataException($"Save finance integrity failed: {finance.Code}.");
-        }
+        if (!finance.IsValid) throw new InvalidDataException($"Save finance integrity failed: {finance.Code}.");
 
         var header = new SaveHeader(
             envelope.Header.SaveSchemaVersion,
@@ -113,9 +85,7 @@ public static class SaveV1Serializer
             envelope.Header.LastSavedAtRealTime,
             storedChecksum);
 
-        if (header.CampaignId != state.CampaignId ||
-            header.WorldSeed != state.WorldSeed ||
-            header.CurrentDateTime != state.CurrentDateTime)
+        if (header.CampaignId != state.CampaignId || header.WorldSeed != state.WorldSeed || header.CurrentDateTime != state.CurrentDateTime)
         {
             throw new InvalidDataException("Save header does not match the serialized GameState.");
         }
@@ -160,91 +130,70 @@ public static class SaveV1Serializer
         public required List<Guid> FieldIds { get; init; }
         public required List<FieldDto> Fields { get; init; }
         public required List<Guid> OwnedFieldIds { get; init; }
+        public required List<FieldCropPlanDto> CropPlans { get; init; }
+        public required List<FieldOperationPlanDto> Operations { get; init; }
+        public required List<SoilAnalysisOrderDto> SoilAnalysisOrders { get; init; }
         public decimal OpeningCash { get; init; }
         public decimal Debt { get; init; }
         public required List<TransactionDto> Transactions { get; init; }
         public required SortedDictionary<string, ulong> RngStreams { get; init; }
         public required List<DomainEventDto> Events { get; init; }
 
-        public static GameStateDto FromDomain(GameState state)
+        public static GameStateDto FromDomain(GameState state) => new()
         {
-            return new GameStateDto
-            {
-                CampaignId = state.CampaignId.Value,
-                WorldSeed = state.WorldSeed,
-                DifficultyProfileId = state.DifficultyProfileId.Value,
-                PlayerFarmId = state.PlayerFarmId.Value,
-                CurrentDateTime = state.CurrentDateTime.Value,
-                CompletedDays = state.Simulation.CompletedDays,
-                FieldIds = state.World.FieldIds.Select(id => id.Value).OrderBy(id => id).ToList(),
-                Fields = state.World.Fields
-                    .OrderBy(static field => field.Id.Value)
-                    .Select(FieldDto.FromDomain)
-                    .ToList(),
-                OwnedFieldIds = state.Farm.OwnedFieldIds.Select(id => id.Value).ToList(),
-                OpeningCash = state.Economy.OpeningCash.Value,
-                Debt = state.Economy.Debt.Value,
-                Transactions = state.Economy.Ledger.Entries.Select(TransactionDto.FromDomain).ToList(),
-                RngStreams = new SortedDictionary<string, ulong>(state.RngState.Streams, StringComparer.Ordinal),
-                Events = state.EventLog.Entries.Select(DomainEventDto.FromDomain).ToList()
-            };
-        }
+            CampaignId = state.CampaignId.Value,
+            WorldSeed = state.WorldSeed,
+            DifficultyProfileId = state.DifficultyProfileId.Value,
+            PlayerFarmId = state.PlayerFarmId.Value,
+            CurrentDateTime = state.CurrentDateTime.Value,
+            CompletedDays = state.Simulation.CompletedDays,
+            FieldIds = state.World.FieldIds.Select(id => id.Value).OrderBy(id => id).ToList(),
+            Fields = state.World.Fields.OrderBy(static field => field.Id.Value).Select(FieldDto.FromDomain).ToList(),
+            OwnedFieldIds = state.Farm.OwnedFieldIds.Select(id => id.Value).ToList(),
+            CropPlans = state.Farm.CropPlans.Select(FieldCropPlanDto.FromDomain).ToList(),
+            Operations = state.Farm.Operations.Select(FieldOperationPlanDto.FromDomain).ToList(),
+            SoilAnalysisOrders = state.Farm.SoilAnalysisOrders.Select(SoilAnalysisOrderDto.FromDomain).ToList(),
+            OpeningCash = state.Economy.OpeningCash.Value,
+            Debt = state.Economy.Debt.Value,
+            Transactions = state.Economy.Ledger.Entries.Select(TransactionDto.FromDomain).ToList(),
+            RngStreams = new SortedDictionary<string, ulong>(state.RngState.Streams, StringComparer.Ordinal),
+            Events = state.EventLog.Entries.Select(DomainEventDto.FromDomain).ToList()
+        };
 
         public GameState ToDomain()
         {
             var world = new WorldState();
-            foreach (var field in Fields)
-            {
-                world.AddField(field.ToDomain());
-            }
-
+            foreach (var field in Fields) world.AddField(field.ToDomain());
             foreach (var fieldId in FieldIds)
             {
                 var id = new EntityId(fieldId);
-                if (!world.FieldRegistry.Contains(id))
-                {
-                    world.FieldRegistry.Add(id);
-                }
+                if (!world.FieldRegistry.Contains(id)) world.FieldRegistry.Add(id);
             }
 
-            var economy = new EconomyState(new Money(OpeningCash))
-            {
-                Debt = new Money(Debt)
-            };
-            foreach (var transaction in Transactions)
-            {
-                economy.PostTransaction(transaction.ToDomain());
-            }
+            var economy = new EconomyState(new Money(OpeningCash)) { Debt = new Money(Debt) };
+            foreach (var transaction in Transactions) economy.PostTransaction(transaction.ToDomain());
 
             var eventLog = new EventLog();
-            foreach (var domainEvent in Events)
-            {
-                eventLog.Append(domainEvent.ToDomain());
-            }
+            foreach (var domainEvent in Events) eventLog.Append(domainEvent.ToDomain());
 
             return new GameState
             {
-                Campaign = new CampaignState
-                {
-                    Id = new EntityId(CampaignId),
-                    WorldSeed = WorldSeed,
-                    DifficultyProfileId = new CatalogId(DifficultyProfileId)
-                },
+                Campaign = new CampaignState { Id = new EntityId(CampaignId), WorldSeed = WorldSeed, DifficultyProfileId = new CatalogId(DifficultyProfileId) },
                 World = world,
                 Farm = new FarmState
                 {
                     PlayerFarmId = new EntityId(PlayerFarmId),
-                    OwnedFieldIds = OwnedFieldIds.Select(id => new EntityId(id)).ToList()
+                    OwnedFieldIds = OwnedFieldIds.Select(id => new EntityId(id)).ToList(),
+                    CropPlans = CropPlans.Select(item => item.ToDomain()).ToList(),
+                    Operations = Operations.Select(item => item.ToDomain()).ToList(),
+                    SoilAnalysisOrders = SoilAnalysisOrders.Select(item => item.ToDomain()).ToList()
                 },
                 Economy = economy,
                 Simulation = new SimulationState
                 {
                     CurrentDateTime = new GameDateTime(CurrentDateTime),
                     CompletedDays = CompletedDays,
-                    RngState = new RngState
-                    {
-                        Streams = new Dictionary<string, ulong>(RngStreams, StringComparer.Ordinal)
-                    }
+                    RngState = new RngState { Streams = new Dictionary<string, ulong>(RngStreams, StringComparer.Ordinal) }
                 },
                 EventLog = eventLog
             };
@@ -296,6 +245,93 @@ public static class SaveV1Serializer
             SoilP = SoilP,
             SoilK = SoilK,
             OrganicMatter = OrganicMatter
+        };
+    }
+
+    private sealed class FieldCropPlanDto
+    {
+        public Guid FieldId { get; init; }
+        public required string CropId { get; init; }
+        public DateTime PlannedAt { get; init; }
+        public static FieldCropPlanDto FromDomain(FieldCropPlan plan) => new() { FieldId = plan.FieldId.Value, CropId = plan.CropId.Value, PlannedAt = plan.PlannedAt.Value };
+        public FieldCropPlan ToDomain() => new() { FieldId = new EntityId(FieldId), CropId = new CatalogId(CropId), PlannedAt = new GameDateTime(PlannedAt) };
+    }
+
+    private sealed class FieldOperationPlanDto
+    {
+        public Guid OperationId { get; init; }
+        public Guid FieldId { get; init; }
+        public required string CropId { get; init; }
+        public required string OperationType { get; init; }
+        public decimal RemainingAreaHa { get; init; }
+        public decimal ProductivityHaPerHour { get; init; }
+        public decimal RequiredHours { get; init; }
+        public decimal EstimatedCost { get; init; }
+        public DateTime PlannedAt { get; init; }
+        public required string Status { get; init; }
+
+        public static FieldOperationPlanDto FromDomain(FieldOperationPlan operation) => new()
+        {
+            OperationId = operation.OperationId.Value,
+            FieldId = operation.FieldId.Value,
+            CropId = operation.CropId.Value,
+            OperationType = operation.OperationType.Value,
+            RemainingAreaHa = operation.RemainingArea.Value,
+            ProductivityHaPerHour = operation.ProductivityHaPerHour,
+            RequiredHours = operation.RequiredHours,
+            EstimatedCost = operation.EstimatedCost.Value,
+            PlannedAt = operation.PlannedAt.Value,
+            Status = operation.Status.Value
+        };
+
+        public FieldOperationPlan ToDomain() => new()
+        {
+            OperationId = new EntityId(OperationId),
+            FieldId = new EntityId(FieldId),
+            CropId = new CatalogId(CropId),
+            OperationType = new CatalogId(OperationType),
+            RemainingArea = new AreaHa(RemainingAreaHa),
+            ProductivityHaPerHour = ProductivityHaPerHour,
+            RequiredHours = RequiredHours,
+            EstimatedCost = new Money(EstimatedCost),
+            PlannedAt = new GameDateTime(PlannedAt),
+            Status = new CatalogId(Status)
+        };
+    }
+
+    private sealed class SoilAnalysisOrderDto
+    {
+        public Guid OrderId { get; init; }
+        public Guid FieldId { get; init; }
+        public DateTime OrderedAt { get; init; }
+        public DateTime DueAt { get; init; }
+        public decimal Cost { get; init; }
+        public required string Status { get; init; }
+        public Guid CausationCommandId { get; init; }
+        public Guid CorrelationId { get; init; }
+
+        public static SoilAnalysisOrderDto FromDomain(SoilAnalysisOrder order) => new()
+        {
+            OrderId = order.OrderId.Value,
+            FieldId = order.FieldId.Value,
+            OrderedAt = order.OrderedAt.Value,
+            DueAt = order.DueAt.Value,
+            Cost = order.Cost.Value,
+            Status = order.Status.Value,
+            CausationCommandId = order.CausationCommandId.Value,
+            CorrelationId = order.CorrelationId.Value
+        };
+
+        public SoilAnalysisOrder ToDomain() => new()
+        {
+            OrderId = new EntityId(OrderId),
+            FieldId = new EntityId(FieldId),
+            OrderedAt = new GameDateTime(OrderedAt),
+            DueAt = new GameDateTime(DueAt),
+            Cost = new Money(Cost),
+            Status = new CatalogId(Status),
+            CausationCommandId = new EntityId(CausationCommandId),
+            CorrelationId = new EntityId(CorrelationId)
         };
     }
 
@@ -356,22 +392,14 @@ public static class SaveV1Serializer
         private static SortedDictionary<string, string> CreateSortedPayload(IReadOnlyDictionary<string, string> values)
         {
             var result = new SortedDictionary<string, string>(StringComparer.Ordinal);
-            foreach (var pair in values)
-            {
-                result.Add(pair.Key, pair.Value);
-            }
-
+            foreach (var pair in values) result.Add(pair.Key, pair.Value);
             return result;
         }
 
         public DomainEvent ToDomain()
         {
             var payload = new DomainEventPayload();
-            foreach (var pair in Payload)
-            {
-                payload.Add(pair.Key, pair.Value);
-            }
-
+            foreach (var pair in Payload) payload.Add(pair.Key, pair.Value);
             return new DomainEvent
             {
                 EventId = new EntityId(EventId),
@@ -395,9 +423,7 @@ public sealed class AutosaveStore
 
     public AutosaveStore(string directory, Func<DateTime>? utcNow = null)
     {
-        _directory = string.IsNullOrWhiteSpace(directory)
-            ? throw new ArgumentException("Save directory cannot be blank.", nameof(directory))
-            : directory;
+        _directory = string.IsNullOrWhiteSpace(directory) ? throw new ArgumentException("Save directory cannot be blank.", nameof(directory)) : directory;
         _utcNow = utcNow ?? (() => DateTime.UtcNow);
     }
 
@@ -406,24 +432,16 @@ public sealed class AutosaveStore
     public SaveHeader Save(GameState state, ConfigVersion configVersion, string buildVersion)
     {
         Directory.CreateDirectory(_directory);
-
         var now = DateTime.SpecifyKind(_utcNow(), DateTimeKind.Utc);
         var createdAt = now;
         if (File.Exists(SlotPath))
         {
-            try
-            {
-                createdAt = Load().Header.CreatedAtRealTime;
-            }
-            catch (InvalidDataException)
-            {
-                // Keep the invalid active file untouched until a fully valid replacement is ready.
-            }
+            try { createdAt = Load().Header.CreatedAtRealTime; }
+            catch (InvalidDataException) { }
         }
 
         var json = SaveV1Serializer.Serialize(state, configVersion, buildVersion, createdAt, now);
         _ = SaveV1Serializer.Deserialize(json);
-
         var tempPath = SlotPath + ".tmp";
         try
         {
@@ -441,20 +459,13 @@ public sealed class AutosaveStore
         }
         finally
         {
-            if (File.Exists(tempPath))
-            {
-                File.Delete(tempPath);
-            }
+            if (File.Exists(tempPath)) File.Delete(tempPath);
         }
     }
 
     public SaveLoadResult Load()
     {
-        if (!File.Exists(SlotPath))
-        {
-            throw new FileNotFoundException("Autosave slot does not exist.", SlotPath);
-        }
-
+        if (!File.Exists(SlotPath)) throw new FileNotFoundException("Autosave slot does not exist.", SlotPath);
         return SaveV1Serializer.Deserialize(File.ReadAllText(SlotPath, Encoding.UTF8));
     }
 }
