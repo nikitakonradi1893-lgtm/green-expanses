@@ -257,13 +257,29 @@ public static class SaveV1Serializer
         public decimal AreaHa { get; init; }
         public decimal DistanceKm { get; init; }
         public decimal FieldQualityBase { get; init; }
+        public decimal Fertility { get; init; }
+        public decimal Ph { get; init; }
+        public decimal ManagementHistory { get; init; }
+        public required string DrainageType { get; init; }
+        public decimal SoilN { get; init; }
+        public decimal SoilP { get; init; }
+        public decimal SoilK { get; init; }
+        public decimal OrganicMatter { get; init; }
 
         public static FieldDto FromDomain(Field field) => new()
         {
             Id = field.Id.Value,
             AreaHa = field.Area.Value,
             DistanceKm = field.DistanceKm,
-            FieldQualityBase = field.FieldQualityBase
+            FieldQualityBase = field.FieldQualityBase,
+            Fertility = field.Fertility,
+            Ph = field.Ph,
+            ManagementHistory = field.ManagementHistory,
+            DrainageType = field.DrainageType.Value,
+            SoilN = field.SoilN,
+            SoilP = field.SoilP,
+            SoilK = field.SoilK,
+            OrganicMatter = field.OrganicMatter
         };
 
         public Field ToDomain() => new()
@@ -271,7 +287,15 @@ public static class SaveV1Serializer
             Id = new EntityId(Id),
             Area = new AreaHa(AreaHa),
             DistanceKm = DistanceKm,
-            FieldQualityBase = FieldQualityBase
+            FieldQualityBase = FieldQualityBase,
+            Fertility = Fertility,
+            Ph = Ph,
+            ManagementHistory = ManagementHistory,
+            DrainageType = new CatalogId(DrainageType),
+            SoilN = SoilN,
+            SoilP = SoilP,
+            SoilK = SoilK,
+            OrganicMatter = OrganicMatter
         };
     }
 

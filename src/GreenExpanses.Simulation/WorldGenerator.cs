@@ -28,17 +28,90 @@ public static class WorldGenerator
         var world = new WorldState();
         for (var index = 0; index < config.FieldCount; index++)
         {
+            var quality = GenerateQuality(config.QualityBands, rng);
+            var management = GenerateScalarFromQuality(quality, config.Agronomy.ManagementHistory, rng);
+            var soil = config.Agronomy.Soil;
+
             world.AddField(new Field
             {
                 Id = new EntityId(DeterministicFieldGuid(worldSeed, index)),
                 Area = new AreaHa(areas[index]),
                 DistanceKm = distances[index],
-                FieldQualityBase = GenerateQuality(config.QualityBands, rng)
+                FieldQualityBase = quality,
+                Fertility = GenerateScalarFromQuality(quality, config.Agronomy.Fertility, rng),
+                Ph = GeneratePh(quality, config.Agronomy.Ph, rng),
+                ManagementHistory = management,
+                DrainageType = GenerateDrainage(config.Agronomy.DrainageWeights, rng),
+                SoilN = GenerateSoilValue(soil.NBase, soil.NQualitySlope, soil.NManagementSlope, soil.NNoise, quality, management, soil.SoilMin, soil.SoilMax, rng),
+                SoilP = GenerateSoilValue(soil.PBase, soil.PQualitySlope, soil.PManagementSlope, soil.PNoise, quality, management, soil.SoilMin, soil.SoilMax, rng),
+                SoilK = GenerateSoilValue(soil.KBase, soil.KQualitySlope, soil.KManagementSlope, soil.KNoise, quality, management, soil.SoilMin, soil.SoilMax, rng),
+                OrganicMatter = Clamp(
+                    quality * soil.OrganicMatterQualitySlope +
+                    Uniform(rng, -soil.OrganicMatterNoise, soil.OrganicMatterNoise) +
+                    (management - 60m) * soil.OrganicMatterManagementSlope,
+                    soil.OrganicMatterMin,
+                    soil.OrganicMatterMax)
             });
         }
 
         return new WorldGenerationResult(world, rng.Snapshot());
     }
+
+    private static decimal GenerateScalarFromQuality(decimal quality, ScalarNoiseConfig config, IDeterministicRng rng) =>
+        Clamp(quality + Uniform(rng, config.NoiseMin, config.NoiseMax), config.Min, config.Max);
+
+    private static decimal GenerateSoilValue(
+        decimal baseValue,
+        decimal qualitySlope,
+        decimal managementSlope,
+        decimal noise,
+        decimal quality,
+        decimal management,
+        decimal min,
+        decimal max,
+        IDeterministicRng rng)
+    {
+        var baseline = baseValue + (quality - 70m) * qualitySlope;
+        return Clamp(
+            baseline + (management - 60m) * managementSlope + Uniform(rng, -noise, noise),
+            min,
+            max);
+    }
+
+    private static decimal GeneratePh(decimal quality, PhGenerationConfig config, IDeterministicRng rng)
+    {
+        var sigma = config.SigmaBands.FirstOrDefault(band => quality >= band.QualityMin)?.Sigma
+            ?? config.SigmaBands[^1].Sigma;
+        var u1 = Math.Max(rng.NextUnitDouble(RngStreams.Quality), double.Epsilon);
+        var u2 = rng.NextUnitDouble(RngStreams.Quality);
+        var standardNormal = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Cos(2.0 * Math.PI * u2);
+        var value = config.Mean + (decimal)standardNormal * sigma;
+        return decimal.Round(Clamp(value, config.Min, config.Max), 2, MidpointRounding.AwayFromZero);
+    }
+
+    private static CatalogId GenerateDrainage(IReadOnlyList<DrainageWeight> weights, IDeterministicRng rng)
+    {
+        var roll = rng.NextInt(RngStreams.Quality, 0, 100);
+        var cumulative = 0;
+        foreach (var weight in weights)
+        {
+            cumulative += weight.WeightPercent;
+            if (roll < cumulative)
+            {
+                return weight.Id;
+            }
+        }
+
+        throw new InvalidOperationException("Drainage weights do not sum to 100%.");
+    }
+
+    private static decimal Uniform(IDeterministicRng rng, decimal min, decimal max)
+    {
+        var unit = (decimal)rng.NextUnitDouble(RngStreams.Quality);
+        return decimal.Round(min + (max - min) * unit, 2, MidpointRounding.AwayFromZero);
+    }
+
+    private static decimal Clamp(decimal value, decimal min, decimal max) => Math.Min(max, Math.Max(min, value));
 
     private static List<decimal> GenerateExactDistribution(
         IReadOnlyList<GenerationRangeBand> bands,
@@ -62,9 +135,7 @@ public static class WorldGenerator
         return result;
     }
 
-    private static decimal GenerateQuality(
-        IReadOnlyList<GenerationWeightBand> bands,
-        IDeterministicRng rng)
+    private static decimal GenerateQuality(IReadOnlyList<GenerationWeightBand> bands, IDeterministicRng rng)
     {
         var roll = rng.NextInt(RngStreams.Quality, 0, 100);
         var cumulative = 0;
@@ -80,12 +151,7 @@ public static class WorldGenerator
         throw new InvalidOperationException("FieldQualityBase probability bands do not sum to 100%.");
     }
 
-    private static decimal NextHundredth(
-        IDeterministicRng rng,
-        string stream,
-        decimal min,
-        decimal max,
-        bool includeUpperBound)
+    private static decimal NextHundredth(IDeterministicRng rng, string stream, decimal min, decimal max, bool includeUpperBound)
     {
         var minHundredths = checked((int)(min * 100m));
         var maxHundredths = checked((int)(max * 100m));
@@ -107,7 +173,7 @@ public static class WorldGenerator
         Span<byte> bytes = stackalloc byte[16];
         BitConverter.TryWriteBytes(bytes[..8], worldSeed);
         BitConverter.TryWriteBytes(bytes[8..12], index);
-        BitConverter.TryWriteBytes(bytes[12..], 0x464C4431); // "FLD1"
+        BitConverter.TryWriteBytes(bytes[12..], 0x464C4431);
         return new Guid(bytes);
     }
 }

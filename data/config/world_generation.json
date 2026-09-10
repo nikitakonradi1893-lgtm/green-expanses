@@ -26,7 +26,48 @@
         { "min": 70.0, "max": 80.0, "weightPercent": 35, "includeUpperBound": false },
         { "min": 80.0, "max": 90.0, "weightPercent": 20, "includeUpperBound": false },
         { "min": 90.0, "max": 100.0, "weightPercent": 10, "includeUpperBound": true }
-      ]
+      ],
+      "agronomy": {
+        "fertility": { "noiseMin": -8.0, "noiseMax": 8.0, "min": 45.0, "max": 100.0 },
+        "managementHistory": { "noiseMin": -25.0, "noiseMax": 15.0, "min": 20.0, "max": 100.0 },
+        "ph": {
+          "mean": 6.5,
+          "min": 5.0,
+          "max": 7.8,
+          "sigmaBands": [
+            { "qualityMin": 80.0, "sigma": 0.30 },
+            { "qualityMin": 60.0, "sigma": 0.45 },
+            { "qualityMin": 40.0, "sigma": 0.60 }
+          ]
+        },
+        "drainageWeights": [
+          { "id": "normal", "weightPercent": 70 },
+          { "id": "dry_prone", "weightPercent": 15 },
+          { "id": "wet_prone", "weightPercent": 12 },
+          { "id": "problematic", "weightPercent": 3 }
+        ],
+        "soil": {
+          "nBase": 45.0,
+          "nQualitySlope": 0.30,
+          "nManagementSlope": 0.25,
+          "nNoise": 15.0,
+          "pBase": 50.0,
+          "pQualitySlope": 0.35,
+          "pManagementSlope": 0.20,
+          "pNoise": 12.0,
+          "kBase": 55.0,
+          "kQualitySlope": 0.40,
+          "kManagementSlope": 0.15,
+          "kNoise": 10.0,
+          "soilMin": 5.0,
+          "soilMax": 95.0,
+          "organicMatterQualitySlope": 1.0,
+          "organicMatterManagementSlope": 0.15,
+          "organicMatterNoise": 10.0,
+          "organicMatterMin": 35.0,
+          "organicMatterMax": 100.0
+        }
+      }
     }
   ]
 }
