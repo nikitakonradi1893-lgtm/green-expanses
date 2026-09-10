@@ -34,7 +34,8 @@ public sealed class CampaignState
 
 public sealed class WorldState
 {
-    public List<EntityId> FieldIds { get; init; } = [];
+    public EntityRegistry FieldRegistry { get; init; } = new();
+    public IReadOnlyCollection<EntityId> FieldIds => FieldRegistry.Ids;
 }
 
 public sealed class FarmState
