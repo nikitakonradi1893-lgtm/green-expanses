@@ -17,7 +17,7 @@ public static class WorldGenerator
         new(60m, 120m, 150),
         new(120m, 200m, 100),
         new(200m, 300m, 40),
-        new(300m, 400m, 10, includeUpperBound: true)
+        new(300m, 400m, 10, IncludeUpperBound: true)
     ];
 
     private static readonly RangeBand[] DistanceBands =
@@ -27,7 +27,7 @@ public static class WorldGenerator
         new(10m, 20m, 150),
         new(20m, 30m, 100),
         new(30m, 45m, 40),
-        new(45m, 60m, 10, includeUpperBound: true)
+        new(45m, 60m, 10, IncludeUpperBound: true)
     ];
 
     private static readonly QualityBand[] QualityBands =
@@ -36,7 +36,7 @@ public static class WorldGenerator
         new(55m, 70m, 25),
         new(70m, 80m, 35),
         new(80m, 90m, 20),
-        new(90m, 100m, 10, includeUpperBound: true)
+        new(90m, 100m, 10, IncludeUpperBound: true)
     ];
 
     public static WorldGenerationResult Generate(ulong worldSeed, RngState initialRngState)
