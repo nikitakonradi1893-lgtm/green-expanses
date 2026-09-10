@@ -35,14 +35,19 @@ public partial class Main : Control
         margin.AddThemeConstantOverride("margin_bottom", 24);
         AddChild(margin);
 
-        var root = new VBoxContainer { ThemeOverrideConstants = { Separation = 14 } };
+        var root = new VBoxContainer();
+        root.AddThemeConstantOverride("separation", 14);
         margin.AddChild(root);
 
-        root.AddChild(new Label { Text = "ЗЕЛЁНЫЕ ПРОСТОРЫ  •  INTERNAL FIRST PLAYABLE", ThemeOverrideFontSizes = { FontSize = 26 } });
+        var title = new Label { Text = "ЗЕЛЁНЫЕ ПРОСТОРЫ  •  INTERNAL FIRST PLAYABLE" };
+        title.AddThemeFontSizeOverride("font_size", 26);
+        root.AddChild(title);
+
         _status = new Label { Text = "Готово" };
         root.AddChild(_status);
 
-        var toolbar = new HBoxContainer { ThemeOverrideConstants = { Separation = 8 } };
+        var toolbar = new HBoxContainer();
+        toolbar.AddThemeConstantOverride("separation", 8);
         root.AddChild(toolbar);
 
         toolbar.AddChild(new Label { Text = "Seed:" });
@@ -57,11 +62,15 @@ public partial class Main : Control
         _summary = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
         root.AddChild(_summary);
         root.AddChild(new HSeparator());
-        root.AddChild(new Label { Text = "ПОЛЯ  •  сначала собственное, затем ближайшие", ThemeOverrideFontSizes = { FontSize = 18 } });
+
+        var fieldsTitle = new Label { Text = "ПОЛЯ  •  сначала собственное, затем ближайшие" };
+        fieldsTitle.AddThemeFontSizeOverride("font_size", 18);
+        root.AddChild(fieldsTitle);
 
         var scroll = new ScrollContainer { SizeFlagsVertical = SizeFlags.ExpandFill };
         root.AddChild(scroll);
-        _fieldRows = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill, ThemeOverrideConstants = { Separation = 6 } };
+        _fieldRows = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _fieldRows.AddThemeConstantOverride("separation", 6);
         scroll.AddChild(_fieldRows);
     }
 
