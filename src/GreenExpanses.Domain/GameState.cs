@@ -13,17 +13,8 @@ public sealed class GameState
     public ulong WorldSeed => Campaign.WorldSeed;
     public CatalogId DifficultyProfileId => Campaign.DifficultyProfileId;
     public EntityId PlayerFarmId => Farm.PlayerFarmId;
-    public GameDateTime CurrentDateTime
-    {
-        get => Simulation.CurrentDateTime;
-        set => Simulation.CurrentDateTime = value;
-    }
-
-    public RngState RngState
-    {
-        get => Simulation.RngState;
-        set => Simulation.RngState = value;
-    }
+    public GameDateTime CurrentDateTime { get => Simulation.CurrentDateTime; set => Simulation.CurrentDateTime = value; }
+    public RngState RngState { get => Simulation.RngState; set => Simulation.RngState = value; }
 }
 
 public sealed class CampaignState
@@ -36,11 +27,9 @@ public sealed class CampaignState
 public sealed class WorldState
 {
     private readonly List<Field> _fields = [];
-
     public EntityRegistry FieldRegistry { get; init; } = new();
     public IReadOnlyCollection<EntityId> FieldIds => FieldRegistry.Ids;
     public IReadOnlyList<Field> Fields => _fields;
-
     public void AddField(Field field)
     {
         ArgumentNullException.ThrowIfNull(field);
@@ -57,30 +46,36 @@ public sealed record FieldCropPlan
     public required GameDateTime PlannedAt { get; init; }
 }
 
+public sealed record FieldOperationPlan
+{
+    public required EntityId OperationId { get; init; }
+    public required EntityId FieldId { get; init; }
+    public required CatalogId CropId { get; init; }
+    public required CatalogId OperationType { get; init; }
+    public required AreaHa RemainingArea { get; init; }
+    public required decimal ProductivityHaPerHour { get; init; }
+    public required decimal RequiredHours { get; init; }
+    public required Money EstimatedCost { get; init; }
+    public required GameDateTime PlannedAt { get; init; }
+    public required CatalogId Status { get; init; }
+}
+
 public sealed class FarmState
 {
     public required EntityId PlayerFarmId { get; init; }
     public List<EntityId> OwnedFieldIds { get; init; } = [];
     public List<FieldCropPlan> CropPlans { get; init; } = [];
+    public List<FieldOperationPlan> Operations { get; init; } = [];
 }
 
 public sealed class EconomyState
 {
-    public EconomyState() : this(Money.Zero)
-    {
-    }
-
-    public EconomyState(Money openingCash)
-    {
-        OpeningCash = openingCash;
-        Cash = openingCash;
-    }
-
+    public EconomyState() : this(Money.Zero) { }
+    public EconomyState(Money openingCash) { OpeningCash = openingCash; Cash = openingCash; }
     public Money OpeningCash { get; }
     public Money Cash { get; private set; }
     public Money Debt { get; set; } = Money.Zero;
     public TransactionLedger Ledger { get; } = new();
-
     public void PostTransaction(TransactionRecord transaction)
     {
         ArgumentNullException.ThrowIfNull(transaction);

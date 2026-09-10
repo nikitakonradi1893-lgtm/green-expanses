@@ -6,9 +6,16 @@ namespace GreenExpanses.GodotClient;
 internal sealed record FirstPlayableProfile(
     decimal StarterFieldTargetAreaHa,
     decimal StarterFieldMaxDistanceKm,
-    decimal StartingCashRub)
+    decimal StartingCashRub,
+    decimal PrototypeSowingWorkWidthM,
+    decimal PrototypeSowingSpeedKmh,
+    decimal PrototypeFieldEfficiency,
+    decimal PrototypeSowingOperatingCostRubPerHour)
 {
-    public static FirstPlayableProfile Default { get; } = new(30m, 10m, 1_000_000m);
+    public static FirstPlayableProfile Default { get; } = new(30m, 10m, 1_000_000m, 6m, 10m, 0.82m, 6_500m);
+
+    public decimal PrototypeSowingProductivityHaPerHour =>
+        PrototypeSowingWorkWidthM * PrototypeSowingSpeedKmh * PrototypeFieldEfficiency / 10m;
 
     public static FirstPlayableProfile Load()
     {
@@ -22,6 +29,10 @@ internal sealed record FirstPlayableProfile(
         return new FirstPlayableProfile(
             item.GetProperty("starterFieldTargetAreaHa").GetDecimal(),
             item.GetProperty("starterFieldMaxDistanceKm").GetDecimal(),
-            item.GetProperty("startingCashRub").GetDecimal());
+            item.GetProperty("startingCashRub").GetDecimal(),
+            item.GetProperty("prototypeSowingWorkWidthM").GetDecimal(),
+            item.GetProperty("prototypeSowingSpeedKmh").GetDecimal(),
+            item.GetProperty("prototypeFieldEfficiency").GetDecimal(),
+            item.GetProperty("prototypeSowingOperatingCostRubPerHour").GetDecimal());
     }
 }

@@ -5,7 +5,11 @@
       "id": "inheritance_internal_v0",
       "starterFieldTargetAreaHa": 30.0,
       "starterFieldMaxDistanceKm": 10.0,
-      "startingCashRub": 1000000.0
+      "startingCashRub": 1000000.0,
+      "prototypeSowingWorkWidthM": 6.0,
+      "prototypeSowingSpeedKmh": 10.0,
+      "prototypeFieldEfficiency": 0.82,
+      "prototypeSowingOperatingCostRubPerHour": 6500.0
     }
   ]
 }
