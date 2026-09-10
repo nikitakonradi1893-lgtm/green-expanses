@@ -17,5 +17,6 @@
     <ProjectReference Include="../../src/GreenExpanses.Simulation/GreenExpanses.Simulation.csproj" />
     <ProjectReference Include="../../src/GreenExpanses.Application/GreenExpanses.Application.csproj" />
     <ProjectReference Include="../../src/GreenExpanses.Data/GreenExpanses.Data.csproj" />
+    <ProjectReference Include="../../src/GreenExpanses.Persistence/GreenExpanses.Persistence.csproj" />
   </ItemGroup>
 </Project>
