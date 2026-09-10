@@ -64,6 +64,7 @@ public static class EmptyDailySimulation
             state.Simulation.CurrentDateTime = state.Simulation.CurrentDateTime.AddDays(1);
             state.Simulation.CompletedDays++;
             SoilAnalysisSimulation.CompleteDueOrders(state);
+            FieldOperationSimulation.AdvanceInProgressOperations(state);
         }
 
         state.Simulation.RngState = rng.Snapshot();
@@ -99,6 +100,65 @@ public static class SoilAnalysisSimulation
                 CausationCommandId = order.CausationCommandId,
                 CorrelationId = order.CorrelationId
             });
+        }
+    }
+}
+
+public static class FieldOperationSimulation
+{
+    public const decimal PrototypeWorkHoursPerDay = 8m;
+
+    public static void AdvanceInProgressOperations(GameState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        var inProgressStatus = new CatalogId("in_progress");
+        var completedStatus = new CatalogId("completed");
+
+        for (var index = 0; index < state.Farm.Operations.Count; index++)
+        {
+            var operation = state.Farm.Operations[index];
+            if (operation.Status != inProgressStatus)
+            {
+                continue;
+            }
+
+            var dailyCapacity = operation.ProductivityHaPerHour * PrototypeWorkHoursPerDay;
+            var remaining = Math.Max(0m, operation.RemainingArea.Value - dailyCapacity);
+            var next = operation with { RemainingArea = new AreaHa(decimal.Round(remaining, 2, MidpointRounding.AwayFromZero)) };
+
+            if (next.RemainingArea.Value <= 0m)
+            {
+                next = next with { Status = completedStatus };
+                state.EventLog.Append(new DomainEvent
+                {
+                    EventId = EntityId.New(),
+                    GameDateTime = state.CurrentDateTime,
+                    EventType = new CatalogId("operation_completed"),
+                    EntityIds = [operation.FieldId, operation.OperationId],
+                    Payload = new DomainEventPayload()
+                        .Add("operation_type", operation.OperationType.Value)
+                        .Add("crop_id", operation.CropId.Value),
+                    CausationCommandId = operation.OperationId,
+                    CorrelationId = operation.OperationId
+                });
+            }
+            else
+            {
+                state.EventLog.Append(new DomainEvent
+                {
+                    EventId = EntityId.New(),
+                    GameDateTime = state.CurrentDateTime,
+                    EventType = new CatalogId("operation_progressed"),
+                    EntityIds = [operation.FieldId, operation.OperationId],
+                    Payload = new DomainEventPayload()
+                        .Add("operation_type", operation.OperationType.Value)
+                        .Add("remaining_area_ha", next.RemainingArea.Value.ToString(CultureInfo.InvariantCulture)),
+                    CausationCommandId = operation.OperationId,
+                    CorrelationId = operation.OperationId
+                });
+            }
+
+            state.Farm.Operations[index] = next;
         }
     }
 }
