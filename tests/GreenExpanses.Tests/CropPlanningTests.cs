@@ -16,12 +16,7 @@ public sealed class CropPlanningTests
         var commandId = EntityId.New();
         var correlationId = EntityId.New();
 
-        var result = bus.Execute(state, new PlanCropCommand(
-            commandId,
-            correlationId,
-            null,
-            fieldId,
-            new CatalogId("winter_wheat")));
+        var result = bus.Execute(state, new PlanCropCommand(commandId, correlationId, null, fieldId, new CatalogId("winter_wheat")));
 
         Assert.True(result.Succeeded);
         var plan = Assert.Single(state.Farm.CropPlans);
@@ -40,12 +35,7 @@ public sealed class CropPlanningTests
         var other = state.World.Fields.First(field => field.Id != owned);
         var bus = FirstPlayableCommandBusFactory.Create();
 
-        var result = bus.Execute(state, new PlanCropCommand(
-            EntityId.New(),
-            EntityId.New(),
-            null,
-            other.Id,
-            new CatalogId("corn")));
+        var result = bus.Execute(state, new PlanCropCommand(EntityId.New(), EntityId.New(), null, other.Id, new CatalogId("grain_corn")));
 
         Assert.False(result.Succeeded);
         Assert.Equal("crop_plan.field_not_owned", result.Code);
