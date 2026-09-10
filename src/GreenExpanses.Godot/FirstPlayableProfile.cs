@@ -8,6 +8,8 @@ internal sealed record FirstPlayableProfile(
     decimal StarterFieldMaxDistanceKm,
     decimal StartingCashRub)
 {
+    public static FirstPlayableProfile Default { get; } = new(30m, 10m, 1_000_000m);
+
     public static FirstPlayableProfile Load()
     {
         var assembly = typeof(FirstPlayableProfile).Assembly;
