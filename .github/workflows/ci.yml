@@ -1,0 +1,27 @@
+name: ci
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build-test-determinism:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Restore
+        run: dotnet restore GreenExpanses.sln
+      - name: Build
+        run: dotnet build GreenExpanses.sln --configuration Release --no-restore
+      - name: Test
+        run: dotnet test GreenExpanses.sln --configuration Release --no-build
+      - name: Deterministic headless smoke
+        shell: bash
+        run: |
+          dotnet run --project src/GreenExpanses.Tools --configuration Release --no-build -- --seed 20260910 --days 365 > run-a.txt
+          dotnet run --project src/GreenExpanses.Tools --configuration Release --no-build -- --seed 20260910 --days 365 > run-b.txt
+          diff -u run-a.txt run-b.txt

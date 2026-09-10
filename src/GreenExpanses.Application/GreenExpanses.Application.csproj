@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../GreenExpanses.Domain/GreenExpanses.Domain.csproj" />
+    <ProjectReference Include="../GreenExpanses.Simulation/GreenExpanses.Simulation.csproj" />
+  </ItemGroup>
+</Project>
