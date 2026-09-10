@@ -65,8 +65,8 @@ jobs:
           $ErrorActionPreference = 'Stop'
           Push-Location 'build\windows'
           try {
-            & '.\GreenExpanses.exe' --headless --quit-after 2
-            if ($LASTEXITCODE -ne 0) { throw "Exported game startup smoke failed with exit code $LASTEXITCODE" }
+            $process = Start-Process -FilePath '.\GreenExpanses.exe' -ArgumentList '--headless','--quit-after','2' -Wait -PassThru -NoNewWindow
+            if ($process.ExitCode -ne 0) { throw "Exported game startup smoke failed with exit code $($process.ExitCode)" }
           }
           finally {
             Pop-Location
