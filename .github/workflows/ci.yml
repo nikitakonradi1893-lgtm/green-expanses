@@ -13,10 +13,14 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - name: Restore
+      - name: Restore core
         run: dotnet restore GreenExpanses.sln
-      - name: Build
+      - name: Restore Godot client
+        run: dotnet restore src/GreenExpanses.Godot/GreenExpanses.Godot.csproj
+      - name: Build core
         run: dotnet build GreenExpanses.sln --configuration Release --no-restore
+      - name: Build Godot client
+        run: dotnet build src/GreenExpanses.Godot/GreenExpanses.Godot.csproj --configuration Release --no-restore
       - name: Unit and integration tests
         run: dotnet test GreenExpanses.sln --configuration Release --no-build
       - name: Deterministic 365-day fixture
