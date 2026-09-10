@@ -2,4 +2,7 @@
   <ItemGroup>
     <ProjectReference Include="../GreenExpanses.Domain/GreenExpanses.Domain.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="../../data/config/world_generation.json" Link="world_generation.json" />
+  </ItemGroup>
 </Project>

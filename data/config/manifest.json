@@ -1,5 +1,11 @@
 {
   "$schema": "schema/manifest.schema.json",
   "configVersion": "1.0.0-dev",
-  "catalogs": []
+  "catalogs": [
+    {
+      "id": "world_generation",
+      "file": "world_generation.json",
+      "schemaVersion": "1"
+    }
+  ]
 }

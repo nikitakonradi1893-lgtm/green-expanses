@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1",
+  "items": [
+    {
+      "id": "baseline_v1",
+      "fieldCount": 500,
+      "areaBands": [
+        { "min": 5.0, "max": 25.0, "count": 75, "includeUpperBound": false },
+        { "min": 25.0, "max": 60.0, "count": 125, "includeUpperBound": false },
+        { "min": 60.0, "max": 120.0, "count": 150, "includeUpperBound": false },
+        { "min": 120.0, "max": 200.0, "count": 100, "includeUpperBound": false },
+        { "min": 200.0, "max": 300.0, "count": 40, "includeUpperBound": false },
+        { "min": 300.0, "max": 400.0, "count": 10, "includeUpperBound": true }
+      ],
+      "distanceBands": [
+        { "min": 0.5, "max": 5.0, "count": 75, "includeUpperBound": false },
+        { "min": 5.0, "max": 10.0, "count": 125, "includeUpperBound": false },
+        { "min": 10.0, "max": 20.0, "count": 150, "includeUpperBound": false },
+        { "min": 20.0, "max": 30.0, "count": 100, "includeUpperBound": false },
+        { "min": 30.0, "max": 45.0, "count": 40, "includeUpperBound": false },
+        { "min": 45.0, "max": 60.0, "count": 10, "includeUpperBound": true }
+      ],
+      "qualityBands": [
+        { "min": 40.0, "max": 55.0, "weightPercent": 10, "includeUpperBound": false },
+        { "min": 55.0, "max": 70.0, "weightPercent": 25, "includeUpperBound": false },
+        { "min": 70.0, "max": 80.0, "weightPercent": 35, "includeUpperBound": false },
+        { "min": 80.0, "max": 90.0, "weightPercent": 20, "includeUpperBound": false },
+        { "min": 90.0, "max": 100.0, "weightPercent": 10, "includeUpperBound": true }
+      ]
+    }
+  ]
+}
