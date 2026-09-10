@@ -1,0 +1,8 @@
+{
+  "name": "core-011-empty-365",
+  "worldSeed": 20260910,
+  "days": 365,
+  "difficultyProfileId": "normal",
+  "expectedCompletedDays": 365,
+  "expectedBehavior": "Two identical headless runs must produce byte-equivalent canonical GameState snapshots."
+}
