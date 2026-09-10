@@ -5,5 +5,6 @@
   <ItemGroup>
     <ProjectReference Include="../GreenExpanses.Domain/GreenExpanses.Domain.csproj" />
     <ProjectReference Include="../GreenExpanses.Simulation/GreenExpanses.Simulation.csproj" />
+    <ProjectReference Include="../GreenExpanses.Data/GreenExpanses.Data.csproj" />
   </ItemGroup>
 </Project>
