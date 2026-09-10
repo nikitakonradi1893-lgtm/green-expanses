@@ -47,8 +47,27 @@ public sealed class FarmState
 
 public sealed class EconomyState
 {
-    public Money Cash { get; set; } = Money.Zero;
+    public EconomyState() : this(Money.Zero)
+    {
+    }
+
+    public EconomyState(Money openingCash)
+    {
+        OpeningCash = openingCash;
+        Cash = openingCash;
+    }
+
+    public Money OpeningCash { get; }
+    public Money Cash { get; private set; }
     public Money Debt { get; set; } = Money.Zero;
+    public TransactionLedger Ledger { get; } = new();
+
+    public void PostTransaction(TransactionRecord transaction)
+    {
+        ArgumentNullException.ThrowIfNull(transaction);
+        Ledger.Append(transaction);
+        Cash += transaction.CashDelta;
+    }
 }
 
 public sealed class SimulationState
