@@ -1,0 +1,1 @@
+Internal first-playable profile only. It is intentionally not registered as a runtime catalog until DifficultyProfiles are implemented; the client loads this file through its internal bootstrap adapter. Values are provisional and must not be treated as the approved Balance Config baseline.
