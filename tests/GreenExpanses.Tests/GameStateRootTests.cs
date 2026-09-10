@@ -22,11 +22,11 @@ public sealed class GameStateRootTests
     }
 
     [Fact]
-    public void NewCampaign_StartsWithEmptyWorldAndEconomy()
+    public void NewCampaign_StartsWithGeneratedWorldAndEmptyPlayerEconomy()
     {
         var state = GameStateFactory.Create(42UL);
 
-        Assert.Empty(state.World.FieldIds);
+        Assert.Equal(WorldGenerator.FieldCount, state.World.FieldIds.Count);
         Assert.Empty(state.Farm.OwnedFieldIds);
         Assert.Equal(0m, state.Economy.Cash.Value);
         Assert.Equal(0m, state.Economy.Debt.Value);
