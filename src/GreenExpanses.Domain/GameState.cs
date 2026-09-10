@@ -35,8 +35,19 @@ public sealed class CampaignState
 
 public sealed class WorldState
 {
+    private readonly List<Field> _fields = [];
+
     public EntityRegistry FieldRegistry { get; init; } = new();
     public IReadOnlyCollection<EntityId> FieldIds => FieldRegistry.Ids;
+    public IReadOnlyList<Field> Fields => _fields;
+
+    public void AddField(Field field)
+    {
+        ArgumentNullException.ThrowIfNull(field);
+        field.Validate();
+        FieldRegistry.Add(field.Id);
+        _fields.Add(field);
+    }
 }
 
 public sealed class FarmState

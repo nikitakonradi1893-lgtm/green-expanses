@@ -11,6 +11,9 @@ public static class GameStateFactory
 
     public static GameState Create(ulong worldSeed, string difficultyProfileId = "normal")
     {
+        var initialRngState = DeterministicRngService.CreateInitialState(worldSeed);
+        var generatedWorld = WorldGenerator.Generate(worldSeed, initialRngState);
+
         return new GameState
         {
             Campaign = new CampaignState
@@ -19,7 +22,7 @@ public static class GameStateFactory
                 WorldSeed = worldSeed,
                 DifficultyProfileId = new CatalogId(difficultyProfileId)
             },
-            World = new WorldState(),
+            World = generatedWorld.World,
             Farm = new FarmState
             {
                 PlayerFarmId = new EntityId(DeterministicGuid(worldSeed, 0xFA41UL))
@@ -28,7 +31,7 @@ public static class GameStateFactory
             Simulation = new SimulationState
             {
                 CurrentDateTime = CampaignEpoch,
-                RngState = DeterministicRngService.CreateInitialState(worldSeed),
+                RngState = generatedWorld.RngState,
                 CompletedDays = 0
             },
             EventLog = new EventLog()
@@ -79,6 +82,7 @@ public static class CanonicalDiagnostics
         builder.Append("completed_days=").Append(state.Simulation.CompletedDays.ToString(CultureInfo.InvariantCulture)).Append('\n');
         builder.Append("difficulty=").Append(state.Campaign.DifficultyProfileId).Append('\n');
         builder.Append("farm=").Append(state.Farm.PlayerFarmId).Append('\n');
+        builder.Append("fields=").Append(state.World.Fields.Count.ToString(CultureInfo.InvariantCulture)).Append('\n');
         builder.Append("cash=").Append(state.Economy.Cash).Append('\n');
         builder.Append("debt=").Append(state.Economy.Debt).Append('\n');
         builder.Append("events=").Append(state.EventLog.Count.ToString(CultureInfo.InvariantCulture)).Append('\n');
