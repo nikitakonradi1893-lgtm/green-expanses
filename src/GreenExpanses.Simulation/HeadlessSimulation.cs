@@ -63,9 +63,43 @@ public static class EmptyDailySimulation
             _ = rng.NextUInt64(RngStreams.Weather);
             state.Simulation.CurrentDateTime = state.Simulation.CurrentDateTime.AddDays(1);
             state.Simulation.CompletedDays++;
+            SoilAnalysisSimulation.CompleteDueOrders(state);
         }
 
         state.Simulation.RngState = rng.Snapshot();
+    }
+}
+
+public static class SoilAnalysisSimulation
+{
+    public static void CompleteDueOrders(GameState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        var completedStatus = new CatalogId("completed");
+        var inProgressStatus = new CatalogId("in_progress");
+
+        for (var index = 0; index < state.Farm.SoilAnalysisOrders.Count; index++)
+        {
+            var order = state.Farm.SoilAnalysisOrders[index];
+            if (order.Status != inProgressStatus || order.DueAt.Value > state.CurrentDateTime.Value)
+            {
+                continue;
+            }
+
+            state.Farm.SoilAnalysisOrders[index] = order with { Status = completedStatus };
+            state.EventLog.Append(new DomainEvent
+            {
+                EventId = EntityId.New(),
+                GameDateTime = state.CurrentDateTime,
+                EventType = new CatalogId("soil_analysis_completed"),
+                EntityIds = [order.FieldId, order.OrderId],
+                Payload = new DomainEventPayload()
+                    .Add("ordered_at", order.OrderedAt.ToString())
+                    .Add("due_at", order.DueAt.ToString()),
+                CausationCommandId = order.CausationCommandId,
+                CorrelationId = order.CorrelationId
+            });
+        }
     }
 }
 
@@ -86,6 +120,7 @@ public static class CanonicalDiagnostics
         builder.Append("cash=").Append(state.Economy.Cash).Append('\n');
         builder.Append("debt=").Append(state.Economy.Debt).Append('\n');
         builder.Append("events=").Append(state.EventLog.Count.ToString(CultureInfo.InvariantCulture)).Append('\n');
+        builder.Append("soil_analysis_orders=").Append(state.Farm.SoilAnalysisOrders.Count.ToString(CultureInfo.InvariantCulture)).Append('\n');
 
         foreach (var stream in state.Simulation.RngState.Streams.OrderBy(static pair => pair.Key, StringComparer.Ordinal))
         {
