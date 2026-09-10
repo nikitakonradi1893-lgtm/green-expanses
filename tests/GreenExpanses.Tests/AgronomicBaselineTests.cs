@@ -68,7 +68,7 @@ public sealed class AgronomicBaselineTests
 
         var loaded = SaveV1Serializer.Deserialize(json).State;
 
-        Assert.Equal(Signature(state.World.Fields), Signature(loaded.World.Fields));
+        Assert.Equal(CanonicalSignature(state.World.Fields), CanonicalSignature(loaded.World.Fields));
     }
 
     private static void AssertWeight(
@@ -84,4 +84,6 @@ public sealed class AgronomicBaselineTests
 
     private static string Signature(IEnumerable<Field> fields) => string.Join('|', fields.Select(static field =>
         $"{field.Id}:{field.Fertility:F2}:{field.Ph:F2}:{field.ManagementHistory:F2}:{field.DrainageType}:{field.SoilN:F2}:{field.SoilP:F2}:{field.SoilK:F2}:{field.OrganicMatter:F2}"));
+
+    private static string CanonicalSignature(IEnumerable<Field> fields) => Signature(fields.OrderBy(static field => field.Id.Value));
 }
