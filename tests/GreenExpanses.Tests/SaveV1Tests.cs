@@ -1,6 +1,7 @@
 using System.Text.Json;
 using GreenExpanses.Domain;
 using GreenExpanses.Persistence;
+using Xunit;
 
 namespace GreenExpanses.Tests;
 
