@@ -75,7 +75,7 @@ public partial class Main : Control
 
         _dateLabel = new Label { Text = "Дата: —" };
         _cashLabel = new Label { Text = "Деньги: —" };
-        _capacityLabel = new Label { Text = "Мощность: Норма" };
+        _capacityLabel = new Label { Text = "Capacity Forecast: не рассчитан" };
         header.AddChild(_dateLabel);
         header.AddChild(_cashLabel);
         header.AddChild(_capacityLabel);
@@ -209,13 +209,18 @@ public partial class Main : Control
         var button = new Button
         {
             Text = active ? $"● {text}" : text,
-            Disabled = !active,
             CustomMinimumSize = new Vector2(150, 34)
         };
+
         if (!active)
         {
-            button.Pressed += () => SetStatus($"Раздел «{text}» появится по мере подключения соответствующей игровой системы.");
+            button.Pressed += () => SetStatus($"Раздел «{text}» пока не подключён к симуляции.");
         }
+        else
+        {
+            button.Pressed += () => SetStatus("Открыта главная панель хозяйства.");
+        }
+
         parent.AddChild(button);
     }
 
@@ -301,7 +306,7 @@ public partial class Main : Control
         var view = FirstPlayableProjectionFactory.Build(_state, 30);
         _dateLabel.Text = $"Дата: {view.CurrentDateTime.Value:dd.MM.yyyy}";
         _cashLabel.Text = $"Деньги: {view.CashRub:N0} ₽";
-        _capacityLabel.Text = "Мощность: Норма";
+        _capacityLabel.Text = "Capacity Forecast: не рассчитан";
         _todayLabel.Text = $"Хозяйство «Наследство»: {view.OwnedAreaHa:N1} га в собственности. " +
                            "Активных операций пока нет — этот экран уже готов принимать реальные задачи из планировщика.";
 
@@ -341,8 +346,8 @@ public partial class Main : Control
         _selectedField = field;
         var ownership = field.IsOwned ? "Собственное поле" : "Поле района";
         var chemistry = field.IsOwned
-            ? $"pH: {field.Ph:N2}\nN / P / K: {field.SoilN:N1} / {field.SoilP:N1} / {field.SoilK:N1}\nОрганическое вещество: {field.OrganicMatter:N1}"
-            : "Агрохимия: точные N/P/K и pH должны раскрываться после анализа почвы. Механика анализа будет подключена отдельно.";
+            ? $"Стартовое обследование\npH: {field.Ph:N2}\nN / P / K: {field.SoilN:N1} / {field.SoilP:N1} / {field.SoilK:N1}\nОрганическое вещество: {field.OrganicMatter:N1}"
+            : "Агрохимия: точные N/P/K и pH должны раскрываться после анализа почвы. Механика анализа пока не подключена.";
 
         _fieldDetail.Text =
             $"{ownership}\n\n" +
