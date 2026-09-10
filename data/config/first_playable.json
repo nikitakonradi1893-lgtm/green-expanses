@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1",
+  "items": [
+    {
+      "id": "inheritance_internal_v0",
+      "starterFieldTargetAreaHa": 30.0,
+      "starterFieldMaxDistanceKm": 10.0,
+      "startingCashRub": 1000000.0
+    }
+  ]
+}
