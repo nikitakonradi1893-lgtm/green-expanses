@@ -1,0 +1,16 @@
+<Project Sdk="Godot.NET.Sdk/4.7.2">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <RootNamespace>GreenExpanses.GodotClient</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../GreenExpanses.Domain/GreenExpanses.Domain.csproj" />
+    <ProjectReference Include="../GreenExpanses.Simulation/GreenExpanses.Simulation.csproj" />
+    <ProjectReference Include="../GreenExpanses.Application/GreenExpanses.Application.csproj" />
+    <ProjectReference Include="../GreenExpanses.Persistence/GreenExpanses.Persistence.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="../../data/config/first_playable.json" Link="first_playable.json" />
+  </ItemGroup>
+</Project>
