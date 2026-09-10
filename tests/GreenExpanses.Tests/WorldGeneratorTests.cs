@@ -99,6 +99,7 @@ public sealed class WorldGeneratorTests
         return counts;
     }
 
-    private static string FieldSignature(IEnumerable<Field> fields) => string.Join('|', fields.Select(static field =>
-        $"{field.Id}:{field.Area.Value:F2}:{field.DistanceKm:F2}:{field.FieldQualityBase:F2}"));
+    private static string FieldSignature(IEnumerable<Field> fields) => string.Join('|', fields
+        .OrderBy(static field => field.Id.Value)
+        .Select(static field => $"{field.Id}:{field.Area.Value:F2}:{field.DistanceKm:F2}:{field.FieldQualityBase:F2}"));
 }
