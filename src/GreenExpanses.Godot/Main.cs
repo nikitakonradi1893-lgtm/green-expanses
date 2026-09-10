@@ -332,7 +332,7 @@ public partial class Main : Control
             return;
         }
 
-        var preview = CalculateSowingPreview(field.AreaHa);
+        var preview = CalculateSowingPreview(new AreaHa(field.AreaHa));
         _scheduleOperationButton.Disabled = false;
         _operationPreview.Text =
             $"Культура: {CropName(plan.CropId)}\n" +
