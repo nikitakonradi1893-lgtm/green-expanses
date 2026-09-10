@@ -10,7 +10,7 @@ namespace GreenExpanses.GodotClient;
 public partial class Main : Control
 {
     private readonly ConfigVersion _configVersion = new("1.0.0-dev");
-    private readonly FirstPlayableProfile _profile = FirstPlayableProfile.Load();
+    private FirstPlayableProfile _profile = FirstPlayableProfile.Default;
     private GameState? _state;
     private AutosaveStore? _autosave;
     private LineEdit _seedInput = null!;
@@ -20,9 +20,59 @@ public partial class Main : Control
 
     public override void _Ready()
     {
-        _autosave = new AutosaveStore(ProjectSettings.GlobalizePath("user://saves"));
-        BuildUi();
-        NewGame();
+        try
+        {
+            _autosave = new AutosaveStore(ProjectSettings.GlobalizePath("user://saves"));
+            BuildUi();
+
+            try
+            {
+                _profile = FirstPlayableProfile.Load();
+            }
+            catch (Exception exception)
+            {
+                GD.PushWarning($"Could not load first playable profile, using safe defaults: {exception}");
+                _profile = FirstPlayableProfile.Default;
+            }
+
+            NewGame();
+        }
+        catch (Exception exception)
+        {
+            GD.PushError($"Fatal startup error: {exception}");
+            ShowStartupError(exception);
+        }
+    }
+
+    private void ShowStartupError(Exception exception)
+    {
+        try
+        {
+            foreach (var child in GetChildren())
+            {
+                child.QueueFree();
+            }
+
+            var label = new Label
+            {
+                Text = "Не удалось запустить прототип.\n\n" + exception.GetType().Name + ": " + exception.Message +
+                       "\n\nПодробности записаны в user://startup_error.log",
+                AutowrapMode = TextServer.AutowrapMode.WordSmart
+            };
+            label.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+            label.OffsetLeft = 32;
+            label.OffsetTop = 32;
+            label.OffsetRight = -32;
+            label.OffsetBottom = -32;
+            AddChild(label);
+
+            var path = ProjectSettings.GlobalizePath("user://startup_error.log");
+            File.WriteAllText(path, exception.ToString());
+        }
+        catch (Exception loggingException)
+        {
+            GD.PushError($"Could not render/write startup error: {loggingException}");
+        }
     }
 
     private void BuildUi()
