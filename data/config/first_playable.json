@@ -9,7 +9,9 @@
       "prototypeSowingWorkWidthM": 6.0,
       "prototypeSowingSpeedKmh": 10.0,
       "prototypeFieldEfficiency": 0.82,
-      "prototypeSowingOperatingCostRubPerHour": 6500.0
+      "prototypeSowingOperatingCostRubPerHour": 6500.0,
+      "prototypeSoilAnalysisCostRub": 18500.0,
+      "prototypeSoilAnalysisDurationDays": 3
     }
   ]
 }
